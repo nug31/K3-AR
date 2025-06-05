@@ -31,6 +31,11 @@ A comprehensive safety management application built with React, TypeScript, and 
 
 ## 🚀 Quick Start
 
+### 🌐 Live Demo
+**🔗 [K3 AR Safety Application](https://k3ar-safety.netlify.app)**
+
+*Experience the full AR safety detection system in your browser!*
+
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
@@ -58,6 +63,13 @@ npm run dev
 ```
 http://localhost:5174
 ```
+
+### 🚀 Deployment
+The application is automatically deployed to Netlify from the main branch:
+- **Production URL**: https://k3ar-safety.netlify.app
+- **Auto-deploy**: Enabled on push to main branch
+- **Build Command**: `npm run build`
+- **Publish Directory**: `dist`
 
 ## 📱 Mobile Experience
 
@@ -133,6 +145,15 @@ src/
 - Update report status
 - Filter by location/date
 - Generate summaries
+
+## 🎯 Recent Updates
+
+### v2.1.0 - Enhanced Detection Accuracy
+- **🔧 Fixed False Positive Detection** - Significantly reduced false alarms
+- **📈 Improved Thresholds** - More accurate hazard detection algorithms
+- **⏱️ Anti-Spam System** - Prevents repeated notifications for same hazards
+- **🎯 Multi-Layer Validation** - Enhanced precision with stricter validation
+- **🚀 Better Performance** - Optimized detection engine for mobile devices
 
 ## 🔧 Development
 
