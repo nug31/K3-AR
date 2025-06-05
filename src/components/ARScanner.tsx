@@ -84,40 +84,47 @@ export function ARScanner() {
     };
 
     const currentObjects = locationBasedObjects[currentLocation as keyof typeof locationBasedObjects] || [];
-    const randomObject = currentObjects[Math.floor(Math.random() * currentObjects.length)];
 
-    const matchingHazards = hazards.filter(hazard =>
-      hazard.detectionKeywords.some(keyword =>
-        keyword.toLowerCase().includes(randomObject.toLowerCase()) ||
-        randomObject.toLowerCase().includes(keyword.toLowerCase())
-      )
-    );
+    // Increase detection probability - 80% chance of finding something
+    if (Math.random() < 0.8) {
+      const randomObject = currentObjects[Math.floor(Math.random() * currentObjects.length)];
 
-    if (matchingHazards.length > 0) {
-      const hazardToAdd = matchingHazards[Math.floor(Math.random() * matchingHazards.length)];
+      const matchingHazards = hazards.filter(hazard =>
+        hazard.detectionKeywords.some(keyword =>
+          keyword.toLowerCase().includes(randomObject.toLowerCase()) ||
+          randomObject.toLowerCase().includes(keyword.toLowerCase())
+        )
+      );
 
-      if (!detectedHazards.find(h => h._id === hazardToAdd._id)) {
-        setDetectedHazards(prev => [...prev, {
-          ...hazardToAdd,
-          detectedAt: Date.now(),
-          position: {
-            x: Math.random() * 80 + 10, // 10-90% from left
-            y: Math.random() * 60 + 20  // 20-80% from top
+      // If no matching hazards for location, use any hazard for demo
+      const availableHazards = matchingHazards.length > 0 ? matchingHazards : hazards;
+
+      if (availableHazards.length > 0) {
+        const hazardToAdd = availableHazards[Math.floor(Math.random() * availableHazards.length)];
+
+        if (!detectedHazards.find(h => h._id === hazardToAdd._id)) {
+          setDetectedHazards(prev => [...prev, {
+            ...hazardToAdd,
+            detectedAt: Date.now(),
+            position: {
+              x: Math.random() * 80 + 10, // 10-90% from left
+              y: Math.random() * 60 + 20  // 20-80% from top
+            }
+          }]);
+
+          // Enhanced notification with sound
+          toast.warning(`⚠️ ${t('ar.hazard_detected')}: ${hazardToAdd.name}`, {
+            duration: 4000,
+            action: {
+              label: t('common.view'),
+              onClick: () => console.log('View hazard details')
+            }
+          });
+
+          // Vibrate if supported
+          if ('vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200]);
           }
-        }]);
-
-        // Enhanced notification with sound
-        toast.warning(`⚠️ ${t('ar.hazard_detected')}: ${hazardToAdd.name}`, {
-          duration: 4000,
-          action: {
-            label: t('common.view'),
-            onClick: () => console.log('View hazard details')
-          }
-        });
-
-        // Vibrate if supported
-        if ('vibrate' in navigator) {
-          navigator.vibrate([200, 100, 200]);
         }
       }
     }
@@ -125,10 +132,12 @@ export function ARScanner() {
 
   useEffect(() => {
     if (isScanning) {
-      const interval = setInterval(simulateHazardDetection, 3000);
+      // Start detection immediately, then every 1.5 seconds for faster detection
+      simulateHazardDetection();
+      const interval = setInterval(simulateHazardDetection, 1500);
       return () => clearInterval(interval);
     }
-  }, [isScanning, hazards]);
+  }, [isScanning, hazards, currentLocation]);
 
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
@@ -280,22 +289,39 @@ export function ARScanner() {
                 🎥 {t('ar.start_scanning')}
               </button>
             ) : (
-              <button
-                onClick={stopCamera}
-                className="btn-secondary flex-1 py-4 md:py-3 text-sm md:text-base"
-                style={{background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'}}
-              >
-                ⏹️ {t('ar.stop_scanning')}
-              </button>
+              <>
+                <button
+                  onClick={stopCamera}
+                  className="btn-secondary flex-1 py-4 md:py-3 text-sm md:text-base"
+                  style={{background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'}}
+                >
+                  ⏹️ {t('ar.stop_scanning')}
+                </button>
+                <button
+                  onClick={simulateHazardDetection}
+                  className="btn-primary px-4 py-4 md:py-3 text-sm md:text-base"
+                  style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}
+                >
+                  🔍 Test
+                </button>
+              </>
             )}
           </div>
 
           {/* Detection summary */}
           {detectedHazards.length > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <h3 className="font-medium text-yellow-800 mb-2">
-                {t('ar.detected_hazards')} ({detectedHazards.length})
-              </h3>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-medium text-yellow-800">
+                  {t('ar.detected_hazards')} ({detectedHazards.length})
+                </h3>
+                <button
+                  onClick={() => setDetectedHazards([])}
+                  className="text-red-600 hover:text-red-800 text-sm font-medium"
+                >
+                  🗑️ Clear
+                </button>
+              </div>
               <div className="space-y-2">
                 {detectedHazards.map((hazard) => (
                   <div key={hazard._id} className="flex justify-between items-center text-sm">

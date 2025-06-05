@@ -9,6 +9,7 @@
     "dev:backend": "convex dev",
     "build": "convex dev --once && tsc && vite build",
     "build:netlify": "npm run generate:api && tsc && vite build",
+    "build:production": "npx tsc --noEmit && vite build",
     "generate:api": "convex dev --once --until-success",
     "preview": "vite preview",
     "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
