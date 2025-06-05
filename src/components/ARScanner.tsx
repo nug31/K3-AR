@@ -41,9 +41,9 @@ class CVDetectionEngine {
     const width = imageData.width;
     const height = imageData.height;
 
-    // 1. Detect exposed wires (looking for thin dark lines) - STRICTER
+    // 1. Detect exposed wires (looking for thin dark lines) - ENHANCED FOR CABLES
     const wireDetection = this.detectExposedWires(data, width, height);
-    if (wireDetection.confidence > 0.4) { // Lowered from 0.6 but with stricter algorithm
+    if (wireDetection.confidence > 0.25) { // Lowered significantly for better cable detection
       detections.push({
         type: 'exposed_wire',
         name: 'Kabel Listrik Terbuka',
@@ -67,9 +67,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 3. Detect cluttered workspace (looking for scattered objects) - HIGHER THRESHOLD
+    // 3. Detect cluttered workspace (looking for scattered objects) - ENHANCED FOR CABLES
     const clutterDetection = this.detectClutteredWorkspace(data, width, height);
-    if (clutterDetection.confidence > 0.7) { // Increased from 0.5
+    if (clutterDetection.confidence > 0.3) { // Lowered for better clutter detection
       detections.push({
         type: 'cluttered_workspace',
         name: 'Area Kerja Berantakan',
@@ -80,9 +80,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 4. Detect unsafe object placement (looking for objects in walkways) - HIGHER THRESHOLD
+    // 4. Detect unsafe object placement (looking for objects in walkways) - ENHANCED FOR CABLES
     const unsafePlacementDetection = this.detectUnsafeObjectPlacement(data, width, height);
-    if (unsafePlacementDetection.confidence > 0.75) { // Increased from 0.6
+    if (unsafePlacementDetection.confidence > 0.4) { // Lowered for better object detection
       detections.push({
         type: 'unsafe_placement',
         name: 'Penempatan Barang Tidak Aman',
@@ -128,16 +128,17 @@ class CVDetectionEngine {
         const gy = Math.abs(data[((y-1)*width+x)*4] - data[((y+1)*width+x)*4]);
         const edge = Math.sqrt(gx*gx + gy*gy);
 
-        if (edge > 80) { // Higher threshold to reduce false positives
+        if (edge > 40) { // Lowered threshold for better cable detection
           totalEdges++;
 
-          // More specific wire detection criteria
-          const isDarkLine = r < 60 && g < 60 && b < 60; // Darker threshold
-          const isMetallic = Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && r > 80; // Metallic colors
-          const isColoredWire = (r > 150 && g < 100 && b < 100) || // Red wire
-                               (g > 150 && r < 100 && b < 100) || // Green wire
-                               (b > 150 && r < 100 && g < 100) || // Blue wire
-                               (r > 150 && g > 150 && b < 100);   // Yellow wire
+          // Enhanced wire detection criteria for various cable types
+          const isDarkLine = r < 80 && g < 80 && b < 80; // Relaxed for black cables
+          const isMetallic = Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && r > 60; // Metallic colors
+          const isColoredWire = (r > 120 && g < 120 && b < 120) || // Red wire
+                               (g > 120 && r < 120 && b < 120) || // Green wire
+                               (b > 120 && r < 120 && g < 120) || // Blue wire
+                               (r > 120 && g > 120 && b < 120) || // Yellow wire
+                               (r > 100 && g > 100 && b > 100 && Math.abs(r-g) < 40); // Gray cables
 
           if (isDarkLine || isMetallic || isColoredWire) {
             // Check for line continuity (wire-like patterns)
@@ -157,13 +158,13 @@ class CVDetectionEngine {
               }
             }
 
-            if (continuity > 8) { // Require line continuity
+            if (continuity > 5) { // Relaxed continuity for scattered cables
               wirePixels++;
               avgX += x;
               avgY += y;
 
               // Check for line segments
-              if (continuity > 15) {
+              if (continuity > 8) { // Relaxed line segment requirement
                 lineSegments++;
               }
             }
@@ -172,14 +173,14 @@ class CVDetectionEngine {
       }
     }
 
-    // Much stricter confidence calculation
-    const minWirePixels = width * height * 0.0005; // Minimum pixels for wire detection
-    const hasLineSegments = lineSegments > 3; // Require multiple line segments
+    // Enhanced confidence calculation for cable detection
+    const minWirePixels = width * height * 0.0003; // Lowered minimum pixels
+    const hasLineSegments = lineSegments > 2; // Relaxed line segment requirement
     const edgeDensity = totalEdges / (width * height);
 
     let confidence = 0;
-    if (wirePixels > minWirePixels && hasLineSegments && edgeDensity < 0.3) {
-      confidence = Math.min((wirePixels / minWirePixels) * 0.3, 0.8); // Max 80% confidence
+    if (wirePixels > minWirePixels && hasLineSegments && edgeDensity < 0.4) {
+      confidence = Math.min((wirePixels / minWirePixels) * 0.4, 0.9); // Increased confidence
     }
 
     return {
@@ -426,11 +427,13 @@ class CVDetectionEngine {
     return brightness > 240 || brightness < 30;
   }
 
-  // Detect cluttered workspace using texture analysis
+  // Enhanced cluttered workspace detection for cables and objects
   private detectClutteredWorkspace(data: Uint8ClampedArray, width: number, height: number) {
     let variance = 0;
     let mean = 0;
     let totalPixels = width * height;
+    let edgeCount = 0;
+    let objectCount = 0;
 
     // Calculate mean brightness
     for (let i = 0; i < data.length; i += 4) {
@@ -438,27 +441,58 @@ class CVDetectionEngine {
     }
     mean /= totalPixels;
 
-    // Calculate variance (measure of clutter)
-    for (let i = 0; i < data.length; i += 4) {
-      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      variance += Math.pow(brightness - mean, 2);
+    // Enhanced analysis for clutter detection
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const brightness = (r + g + b) / 3;
+
+        // Calculate variance
+        variance += Math.pow(brightness - mean, 2);
+
+        // Detect edges (indicating objects/cables)
+        const gx = Math.abs(data[((y-1)*width+(x-1))*4] - data[((y-1)*width+(x+1))*4]);
+        const gy = Math.abs(data[((y-1)*width+x)*4] - data[((y+1)*width+x)*4]);
+        const edge = Math.sqrt(gx*gx + gy*gy);
+
+        if (edge > 30) { // Lower threshold for edge detection
+          edgeCount++;
+        }
+
+        // Detect scattered objects (non-floor colors)
+        if (!this.isFloorColor(r, g, b) && brightness > 50 && brightness < 200) {
+          objectCount++;
+        }
+      }
     }
+
     variance /= totalPixels;
 
-    const confidence = Math.min(variance / 10000, 1);
+    // Enhanced confidence calculation
+    const varianceScore = Math.min(variance / 8000, 1); // Lowered threshold
+    const edgeScore = Math.min(edgeCount / (totalPixels * 0.1), 1);
+    const objectScore = Math.min(objectCount / (totalPixels * 0.05), 1);
+
+    const confidence = Math.max(varianceScore, edgeScore, objectScore * 0.8);
+
     return {
       confidence,
       position: { x: 50, y: 70 }
     };
   }
 
-  // Detect unsafe object placement in walkways
+  // Enhanced unsafe object placement detection for cables and obstacles
   private detectUnsafeObjectPlacement(data: Uint8ClampedArray, width: number, height: number) {
     let obstaclePixels = 0;
+    let cablePixels = 0;
     let floorArea = 0;
+    let avgX = 0, avgY = 0;
 
-    // Focus on bottom third of image (floor area)
-    const startY = Math.floor(height * 0.66);
+    // Focus on bottom half of image (floor area where people walk)
+    const startY = Math.floor(height * 0.5);
 
     for (let y = startY; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -472,14 +506,40 @@ class CVDetectionEngine {
         // Detect objects on floor (non-floor colors)
         if (!this.isFloorColor(r, g, b)) {
           obstaclePixels++;
+          avgX += x;
+          avgY += y;
+
+          // Specifically detect cables on floor
+          const isDarkCable = r < 80 && g < 80 && b < 80;
+          const isColoredCable = (r > 100 && g < 100 && b < 100) ||
+                                (g > 100 && r < 100 && b < 100) ||
+                                (b > 100 && r < 100 && g < 100);
+
+          if (isDarkCable || isColoredCable) {
+            cablePixels++;
+          }
         }
       }
     }
 
-    const confidence = floorArea > 0 ? Math.min(obstaclePixels / (floorArea * 0.1), 1) : 0;
+    // Enhanced confidence calculation
+    const obstacleRatio = floorArea > 0 ? obstaclePixels / floorArea : 0;
+    const cableRatio = floorArea > 0 ? cablePixels / floorArea : 0;
+
+    // Higher confidence if cables are detected on floor
+    let confidence = 0;
+    if (cableRatio > 0.01) { // Cables on floor
+      confidence = Math.min(cableRatio * 20, 0.9);
+    } else if (obstacleRatio > 0.05) { // General obstacles
+      confidence = Math.min(obstacleRatio * 8, 0.8);
+    }
+
     return {
       confidence,
-      position: { x: 50, y: 80 }
+      position: obstaclePixels > 0 ? {
+        x: (avgX / obstaclePixels / width) * 100,
+        y: (avgY / obstaclePixels / height) * 100
+      } : { x: 50, y: 80 }
     };
   }
 
@@ -571,14 +631,19 @@ class CVDetectionEngine {
     return votes >= 3 && isReasonableBrightness;
   }
 
-  // Helper function to detect floor color
+  // Enhanced helper function to detect floor color
   private isFloorColor(r: number, g: number, b: number): boolean {
-    // Typical floor colors (gray, brown, white)
-    const isGray = Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30;
-    const isBrown = r > 100 && g > 60 && b < 80 && r > g && g > b;
-    const isWhite = r > 200 && g > 200 && b > 200;
+    // Typical floor colors (gray, brown, white, concrete, tiles)
+    const isGray = Math.abs(r - g) < 40 && Math.abs(g - b) < 40 && Math.abs(r - b) < 40 && r > 80 && r < 180;
+    const isBrown = r > 80 && g > 50 && b < 100 && r > g && g >= b;
+    const isWhite = r > 180 && g > 180 && b > 180;
+    const isConcrete = Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && r > 100 && r < 160;
+    const isTile = Math.abs(r - g) < 50 && Math.abs(g - b) < 50 && r > 120 && r < 200;
 
-    return isGray || isBrown || isWhite;
+    // Very bright areas (overexposed floor)
+    const isBright = r > 220 && g > 220 && b > 220;
+
+    return isGray || isBrown || isWhite || isConcrete || isTile || isBright;
   }
 }
 
