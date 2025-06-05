@@ -96,6 +96,9 @@ const translations = {
     'ar.no_hazards': 'No hazards detected in current view',
     'ar.camera_access': 'Camera access required for AR scanning',
     'ar.enable_camera': 'Enable Camera',
+    'ar.hazard_detected': 'Hazard Detected',
+    'ar.hazards_found': 'hazards found',
+    'ar.scanning_environment': 'Scanning environment',
     
     // Reports
     'reports.title': 'Safety Reports',
@@ -237,6 +240,9 @@ const translations = {
     'ar.no_hazards': 'Tidak ada bahaya terdeteksi dalam tampilan saat ini',
     'ar.camera_access': 'Akses kamera diperlukan untuk pemindaian AR',
     'ar.enable_camera': 'Aktifkan Kamera',
+    'ar.hazard_detected': 'Bahaya Terdeteksi',
+    'ar.hazards_found': 'bahaya ditemukan',
+    'ar.scanning_environment': 'Memindai lingkungan',
     
     // Reports
     'reports.title': 'Laporan Keselamatan',

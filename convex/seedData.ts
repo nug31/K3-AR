@@ -10,15 +10,16 @@ export const seedHazards = mutation({
       return "Hazards already exist";
     }
 
-    // Create sample hazards
+    // Create sample hazards for different workshop areas
     const sampleHazards = [
+      // Bengkel TKR Hazards
       {
         name: "Exposed Electrical Wiring",
         description: "Damaged electrical cables with exposed copper wiring that pose electrocution risk",
         category: "electrical",
         riskLevel: "high",
-        location: { x: 10, y: 20, area: "Factory Floor A" },
-        detectionKeywords: ["wire", "cable", "electrical", "exposed", "copper"],
+        location: { x: 10, y: 20, area: "Bengkel TKR" },
+        detectionKeywords: ["wire", "cable", "electrical", "exposed", "copper", "battery"],
         safetyMeasures: [
           "Turn off power at main breaker",
           "Use insulated tools only",
@@ -29,66 +30,231 @@ export const seedHazards = mutation({
         createdBy: "system" as any, // Will be replaced with actual user ID
       },
       {
-        name: "Chemical Spill Area",
-        description: "Area where corrosive chemicals may leak, requiring immediate attention",
+        name: "Car Battery Acid Leak",
+        description: "Vehicle battery showing signs of acid leakage, corrosive hazard",
         category: "chemical",
-        riskLevel: "critical",
-        location: { x: 5, y: 15, area: "Chemical Storage" },
-        detectionKeywords: ["chemical", "spill", "leak", "corrosive", "acid", "base"],
-        safetyMeasures: [
-          "Evacuate immediate area",
-          "Wear full PPE including respirator",
-          "Use chemical spill kit",
-          "Ventilate area",
-          "Contact emergency response team"
-        ],
-        isActive: true,
-        createdBy: "system" as any,
-      },
-      {
-        name: "Unsecured Ladder",
-        description: "Ladder not properly secured or positioned, risk of falling",
-        category: "physical",
         riskLevel: "medium",
-        location: { x: 30, y: 25, area: "Warehouse" },
-        detectionKeywords: ["ladder", "unsecured", "unstable", "falling", "height"],
+        location: { x: 25, y: 35, area: "Bengkel TKR" },
+        detectionKeywords: ["battery", "acid", "leak", "corrosive", "vehicle"],
         safetyMeasures: [
-          "Secure ladder base with spotter",
-          "Check ladder condition before use",
-          "Maintain 3-point contact",
-          "Use safety harness for heights over 2m"
+          "Wear acid-resistant gloves",
+          "Use eye protection",
+          "Neutralize spill with baking soda",
+          "Ventilate area properly"
         ],
         isActive: true,
         createdBy: "system" as any,
       },
       {
-        name: "Heavy Machinery Operation Zone",
-        description: "Area with active heavy machinery requiring safety protocols",
+        name: "Engine Hoist Safety Risk",
+        description: "Heavy engine lifting equipment without proper safety chains",
         category: "physical",
         riskLevel: "high",
-        location: { x: 50, y: 40, area: "Factory Floor B" },
-        detectionKeywords: ["machinery", "heavy", "equipment", "moving", "crushing"],
+        location: { x: 40, y: 30, area: "Bengkel TKR" },
+        detectionKeywords: ["engine", "hoist", "lifting", "heavy", "chain"],
         safetyMeasures: [
-          "Wear high-visibility vest",
-          "Maintain safe distance from moving parts",
-          "Use lockout/tagout procedures",
-          "Never bypass safety guards"
+          "Inspect lifting equipment before use",
+          "Use safety chains as backup",
+          "Clear area below lifted objects",
+          "Never work under unsecured loads"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      // Bengkel Mesin Hazards
+      {
+        name: "Unguarded Lathe Machine",
+        description: "Lathe machine operating without proper safety guards",
+        category: "physical",
+        riskLevel: "critical",
+        location: { x: 15, y: 25, area: "Bengkel Mesin" },
+        detectionKeywords: ["lathe", "machine", "unguarded", "rotating", "cutting"],
+        safetyMeasures: [
+          "Install proper machine guards",
+          "Use emergency stop procedures",
+          "Wear close-fitting clothing",
+          "Remove jewelry and loose items"
         ],
         isActive: true,
         createdBy: "system" as any,
       },
       {
-        name: "Poor Ventilation Area",
-        description: "Area with inadequate air circulation leading to potential respiratory issues",
-        category: "biological",
+        name: "Metal Cutting Oil Spill",
+        description: "Slippery cutting oil creating slip hazard on workshop floor",
+        category: "chemical",
         riskLevel: "medium",
-        location: { x: 15, y: 35, area: "Electrical Room" },
-        detectionKeywords: ["ventilation", "air", "breathing", "stuffy", "circulation"],
+        location: { x: 30, y: 40, area: "Bengkel Mesin" },
+        detectionKeywords: ["oil", "spill", "cutting", "slippery", "metal"],
         safetyMeasures: [
-          "Use portable ventilation fans",
-          "Wear appropriate respiratory protection",
-          "Limit exposure time",
-          "Monitor air quality regularly"
+          "Clean spill immediately",
+          "Use absorbent materials",
+          "Place warning signs",
+          "Wear non-slip footwear"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      {
+        name: "Welding Fume Exposure",
+        description: "Inadequate ventilation during welding operations",
+        category: "chemical",
+        riskLevel: "high",
+        location: { x: 50, y: 20, area: "Bengkel Mesin" },
+        detectionKeywords: ["welding", "fume", "smoke", "ventilation", "metal"],
+        safetyMeasures: [
+          "Use local exhaust ventilation",
+          "Wear appropriate respirator",
+          "Work in well-ventilated areas",
+          "Take regular breaks"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      // Bengkel Elind Hazards
+      {
+        name: "High Voltage Circuit Board",
+        description: "Exposed high voltage components in electronic equipment",
+        category: "electrical",
+        riskLevel: "critical",
+        location: { x: 20, y: 30, area: "Bengkel Elind" },
+        detectionKeywords: ["voltage", "circuit", "electronic", "component", "high"],
+        safetyMeasures: [
+          "Turn off power before servicing",
+          "Use lockout/tagout procedures",
+          "Test circuits before touching",
+          "Use insulated tools only"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      {
+        name: "Overheating Electronic Components",
+        description: "Electronic components running at dangerous temperatures",
+        category: "fire",
+        riskLevel: "high",
+        location: { x: 35, y: 45, area: "Bengkel Elind" },
+        detectionKeywords: ["overheating", "electronic", "component", "temperature", "hot"],
+        safetyMeasures: [
+          "Check cooling systems regularly",
+          "Monitor component temperatures",
+          "Ensure proper ventilation",
+          "Replace faulty components immediately"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      // Bengkel TSM Hazards
+      {
+        name: "Fuel Spill Hazard",
+        description: "Gasoline or diesel fuel spilled on workshop floor",
+        category: "fire",
+        riskLevel: "critical",
+        location: { x: 25, y: 35, area: "Bengkel TSM" },
+        detectionKeywords: ["fuel", "gasoline", "diesel", "spill", "flammable"],
+        safetyMeasures: [
+          "Eliminate ignition sources immediately",
+          "Ventilate area thoroughly",
+          "Use appropriate absorbent materials",
+          "Dispose of contaminated materials safely"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      {
+        name: "Engine Parts Scattered",
+        description: "Motorcycle engine parts creating trip hazards on floor",
+        category: "physical",
+        riskLevel: "medium",
+        location: { x: 40, y: 25, area: "Bengkel TSM" },
+        detectionKeywords: ["engine", "parts", "scattered", "trip", "motorcycle"],
+        safetyMeasures: [
+          "Organize parts in designated areas",
+          "Use proper storage containers",
+          "Keep walkways clear",
+          "Label all components"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      // Bengkel TKI Hazards
+      {
+        name: "Server Overheating",
+        description: "Computer servers running at dangerous temperatures",
+        category: "fire",
+        riskLevel: "medium",
+        location: { x: 30, y: 40, area: "Bengkel TKI" },
+        detectionKeywords: ["server", "computer", "overheating", "temperature", "network"],
+        safetyMeasures: [
+          "Check cooling system operation",
+          "Monitor server temperatures",
+          "Ensure proper airflow",
+          "Clean dust from components"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      {
+        name: "Cable Management Hazard",
+        description: "Network cables creating trip hazards and fire risks",
+        category: "electrical",
+        riskLevel: "low",
+        location: { x: 15, y: 30, area: "Bengkel TKI" },
+        detectionKeywords: ["cable", "network", "trip", "management", "wire"],
+        safetyMeasures: [
+          "Use cable management systems",
+          "Secure loose cables",
+          "Route cables away from walkways",
+          "Regular inspection of cable condition"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      // Gudang Hazards
+      {
+        name: "Blocked Emergency Exit",
+        description: "Emergency exit route blocked by stored materials",
+        category: "fire",
+        riskLevel: "high",
+        location: { x: 10, y: 50, area: "Gudang" },
+        detectionKeywords: ["emergency", "exit", "blocked", "storage", "evacuation"],
+        safetyMeasures: [
+          "Clear exit routes immediately",
+          "Mark emergency exits clearly",
+          "Regular inspection of exit routes",
+          "Train staff on evacuation procedures"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      {
+        name: "Unstable Storage Stack",
+        description: "Materials stacked unsafely creating falling hazard",
+        category: "physical",
+        riskLevel: "medium",
+        location: { x: 45, y: 35, area: "Gudang" },
+        detectionKeywords: ["storage", "stack", "unstable", "falling", "materials"],
+        safetyMeasures: [
+          "Secure stacks with strapping",
+          "Limit stack height",
+          "Use proper storage equipment",
+          "Regular stability checks"
+        ],
+        isActive: true,
+        createdBy: "system" as any,
+      },
+      // Other Area Hazards
+      {
+        name: "Wet Floor Slip Hazard",
+        description: "Wet floor surface creating slip and fall risk",
+        category: "physical",
+        riskLevel: "medium",
+        location: { x: 20, y: 25, area: "Other" },
+        detectionKeywords: ["wet", "floor", "slip", "water", "cleaning"],
+        safetyMeasures: [
+          "Place wet floor warning signs",
+          "Use non-slip mats",
+          "Clean spills immediately",
+          "Wear appropriate footwear"
         ],
         isActive: true,
         createdBy: "system" as any,

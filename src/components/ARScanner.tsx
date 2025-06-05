@@ -68,23 +68,58 @@ export function ARScanner() {
     toast.success(t('ar.stop_scanning'));
   };
 
-  // Simulate hazard detection based on mock object recognition
+  // Enhanced hazard detection with visual scanning simulation
   const simulateHazardDetection = () => {
     if (!hazards || hazards.length === 0) return;
 
-    // Simulate detecting hazards based on keywords
-    const mockDetectedObjects = ["wire", "chemical", "ladder", "machinery"];
-    const randomObject = mockDetectedObjects[Math.floor(Math.random() * mockDetectedObjects.length)];
-    
+    // Enhanced object detection simulation based on location
+    const locationBasedObjects = {
+      "Bengkel TKR": ["wire", "electrical", "cable", "battery", "engine"],
+      "Bengkel Mesin": ["machinery", "metal", "oil", "cutting", "welding"],
+      "Bengkel Elind": ["circuit", "electronic", "voltage", "component", "wire"],
+      "Bengkel TSM": ["fuel", "gasoline", "engine", "exhaust", "transmission"],
+      "Bengkel TKI": ["computer", "server", "cable", "monitor", "network"],
+      "Gudang": ["storage", "box", "chemical", "material", "equipment"],
+      "Other": ["general", "floor", "lighting", "ventilation", "safety"]
+    };
+
+    const currentObjects = locationBasedObjects[currentLocation as keyof typeof locationBasedObjects] || [];
+    const randomObject = currentObjects[Math.floor(Math.random() * currentObjects.length)];
+
     const matchingHazards = hazards.filter(hazard =>
       hazard.detectionKeywords.some(keyword =>
-        keyword.toLowerCase().includes(randomObject.toLowerCase())
+        keyword.toLowerCase().includes(randomObject.toLowerCase()) ||
+        randomObject.toLowerCase().includes(keyword.toLowerCase())
       )
     );
 
-    if (matchingHazards.length > 0 && !detectedHazards.find(h => h._id === matchingHazards[0]._id)) {
-      setDetectedHazards(prev => [...prev, matchingHazards[0]]);
-      toast.warning(`Hazard detected: ${matchingHazards[0].name}`);
+    if (matchingHazards.length > 0) {
+      const hazardToAdd = matchingHazards[Math.floor(Math.random() * matchingHazards.length)];
+
+      if (!detectedHazards.find(h => h._id === hazardToAdd._id)) {
+        setDetectedHazards(prev => [...prev, {
+          ...hazardToAdd,
+          detectedAt: Date.now(),
+          position: {
+            x: Math.random() * 80 + 10, // 10-90% from left
+            y: Math.random() * 60 + 20  // 20-80% from top
+          }
+        }]);
+
+        // Enhanced notification with sound
+        toast.warning(`⚠️ ${t('ar.hazard_detected')}: ${hazardToAdd.name}`, {
+          duration: 4000,
+          action: {
+            label: t('common.view'),
+            onClick: () => console.log('View hazard details')
+          }
+        });
+
+        // Vibrate if supported
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      }
     }
   };
 
@@ -120,42 +155,93 @@ export function ARScanner() {
           className="absolute top-0 left-0 w-full h-full pointer-events-none"
         />
         
-        {/* AR Overlay */}
+        {/* Enhanced AR Overlay */}
         {isScanning && (
           <div className="absolute inset-0 pointer-events-none">
-            {/* Scanning indicator */}
-            <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-green-500 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium">
-              🔍 {t('ar.start_scanning')}...
+            {/* Scanning grid overlay */}
+            <div className="absolute inset-0 opacity-30">
+              <svg className="w-full h-full">
+                <defs>
+                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00ff00" strokeWidth="0.5"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+              </svg>
             </div>
 
-            {/* Location indicator */}
-            <div className="absolute top-2 md:top-4 right-2 md:right-4 bg-blue-500 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm">
+            {/* Scanning crosshair */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <div className="w-8 h-8 border-2 border-green-400 rounded-full animate-ping"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 border-2 border-green-400 rounded-full"></div>
+            </div>
+
+            {/* Scanning indicator with animation */}
+            <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-gradient-to-r from-green-500 to-blue-500 text-white px-3 md:px-4 py-2 rounded-full text-xs md:text-sm font-medium shadow-lg animate-pulse">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                🔍 {t('ar.start_scanning')}...
+              </div>
+            </div>
+
+            {/* Location indicator with enhanced styling */}
+            <div className="absolute top-2 md:top-4 right-2 md:right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 md:px-4 py-2 rounded-full text-xs md:text-sm shadow-lg">
               📍 {currentLocation}
             </div>
 
-            {/* Detected hazards overlay */}
+            {/* Hazard count indicator */}
+            {detectedHazards.length > 0 && (
+              <div className="absolute top-12 md:top-16 left-2 md:left-4 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                ⚠️ {detectedHazards.length} {t('ar.hazards_found')}
+              </div>
+            )}
+
+            {/* Enhanced detected hazards overlay with positioning */}
             {detectedHazards.map((hazard, index) => (
               <div
                 key={hazard._id}
-                className="absolute bg-red-500 text-white p-2 rounded-lg shadow-lg max-w-xs"
+                className="absolute animate-bounce"
                 style={{
-                  top: `${20 + index * 80}px`,
-                  left: "50%",
-                  transform: "translateX(-50%)",
+                  top: `${hazard.position?.y || (20 + index * 15)}%`,
+                  left: `${hazard.position?.x || 50}%`,
+                  transform: "translate(-50%, -50%)",
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">⚠️</span>
-                  <div>
-                    <div className="font-semibold text-sm">{hazard.name}</div>
-                    <div className="text-xs opacity-90">{t(`category.${hazard.category}`)}</div>
-                    <div className={`text-xs px-2 py-1 rounded mt-1 ${getRiskColor(hazard.riskLevel)}`}>
-                      {t(`risk.${hazard.riskLevel}`).toUpperCase()}
+                {/* Hazard marker with pulsing effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75 w-6 h-6"></div>
+                  <div className="relative bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg">
+                    ⚠️
+                  </div>
+                </div>
+
+                {/* Hazard info popup */}
+                <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 text-white p-3 rounded-lg shadow-xl max-w-xs min-w-max">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <div>
+                      <div className="font-semibold text-sm">{hazard.name}</div>
+                      <div className="text-xs opacity-90">{t(`category.${hazard.category}`)}</div>
+                      <div className={`text-xs px-2 py-1 rounded mt-1 ${getRiskColor(hazard.riskLevel)}`}>
+                        {t(`risk.${hazard.riskLevel}`).toUpperCase()}
+                      </div>
                     </div>
                   </div>
+                  {/* Arrow pointing to marker */}
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-black border-opacity-80"></div>
                 </div>
               </div>
             ))}
+
+            {/* Scanning progress bar */}
+            <div className="absolute bottom-20 left-4 right-4">
+              <div className="bg-black bg-opacity-50 rounded-full p-2">
+                <div className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full animate-pulse"></div>
+              </div>
+              <div className="text-center text-white text-xs mt-1 font-medium">
+                {t('ar.scanning_environment')}...
+              </div>
+            </div>
           </div>
         )}
       </div>
