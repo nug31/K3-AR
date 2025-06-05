@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K3 AR Safety - Language Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .demo-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .language-switcher {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .lang-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .lang-btn.active {
+            background-color: #667eea;
+            color: white;
+        }
+        .lang-btn:not(.active) {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .lang-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .feature-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .feature-desc {
+            color: #666;
+            font-size: 14px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.in-progress {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 id="main-title">🛡️ K3 AR Safety Application</h1>
+        <p id="subtitle">Multi-Language Support Implementation</p>
+    </div>
+
+    <div class="language-switcher">
+        <button class="lang-btn active" onclick="switchLanguage('en')" id="btn-en">🇺🇸 English</button>
+        <button class="lang-btn" onclick="switchLanguage('id')" id="btn-id">🇮🇩 Bahasa Indonesia</button>
+    </div>
+
+    <div class="demo-section">
+        <h2 id="implementation-title">✅ Implementation Status</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-title" id="context-title">Language Context System</div>
+                <div class="feature-desc" id="context-desc">React Context for managing language state</div>
+                <span class="status completed" id="context-status">Completed</span>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title" id="switcher-title">Language Switcher Component</div>
+                <div class="feature-desc" id="switcher-desc">Toggle between English and Indonesian</div>
+                <span class="status completed" id="switcher-status">Completed</span>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title" id="translations-title">Translation System</div>
+                <div class="feature-desc" id="translations-desc">Comprehensive translation keys for all UI elements</div>
+                <span class="status completed" id="translations-status">Completed</span>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title" id="components-title">Component Updates</div>
+                <div class="feature-desc" id="components-desc">App, Dashboard, ARScanner, Auth components updated</div>
+                <span class="status completed" id="components-status">Completed</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 id="features-title">🌟 Key Features</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-title" id="persistent-title">Persistent Language Preference</div>
+                <div class="feature-desc" id="persistent-desc">Language choice saved in localStorage</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title" id="comprehensive-title">Comprehensive Coverage</div>
+                <div class="feature-desc" id="comprehensive-desc">All UI text translated including navigation, forms, and messages</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title" id="realtime-title">Real-time Switching</div>
+                <div class="feature-desc" id="realtime-desc">Instant language change without page reload</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title" id="contextual-title">Contextual Translations</div>
+                <div class="feature-desc" id="contextual-desc">Industry-specific K3 safety terminology</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 id="usage-title">🚀 How to Use</h2>
+        <ol id="usage-steps">
+            <li id="step1">Open the K3 AR Safety application at <strong>http://localhost:5174</strong></li>
+            <li id="step2">Look for the language switcher buttons (EN/ID) in the top-right corner</li>
+            <li id="step3">Click "ID" to switch to Bahasa Indonesia</li>
+            <li id="step4">Navigate through different sections to see all text translated</li>
+            <li id="step5">Your language preference will be remembered for future visits</li>
+        </ol>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                'main-title': '🛡️ K3 AR Safety Application',
+                'subtitle': 'Multi-Language Support Implementation',
+                'implementation-title': '✅ Implementation Status',
+                'context-title': 'Language Context System',
+                'context-desc': 'React Context for managing language state',
+                'context-status': 'Completed',
+                'switcher-title': 'Language Switcher Component',
+                'switcher-desc': 'Toggle between English and Indonesian',
+                'switcher-status': 'Completed',
+                'translations-title': 'Translation System',
+                'translations-desc': 'Comprehensive translation keys for all UI elements',
+                'translations-status': 'Completed',
+                'components-title': 'Component Updates',
+                'components-desc': 'App, Dashboard, ARScanner, Auth components updated',
+                'components-status': 'Completed',
+                'features-title': '🌟 Key Features',
+                'persistent-title': 'Persistent Language Preference',
+                'persistent-desc': 'Language choice saved in localStorage',
+                'comprehensive-title': 'Comprehensive Coverage',
+                'comprehensive-desc': 'All UI text translated including navigation, forms, and messages',
+                'realtime-title': 'Real-time Switching',
+                'realtime-desc': 'Instant language change without page reload',
+                'contextual-title': 'Contextual Translations',
+                'contextual-desc': 'Industry-specific K3 safety terminology',
+                'usage-title': '🚀 How to Use',
+                'step1': 'Open the K3 AR Safety application at <strong>http://localhost:5174</strong>',
+                'step2': 'Look for the language switcher buttons (EN/ID) in the top-right corner',
+                'step3': 'Click "ID" to switch to Bahasa Indonesia',
+                'step4': 'Navigate through different sections to see all text translated',
+                'step5': 'Your language preference will be remembered for future visits'
+            },
+            id: {
+                'main-title': '🛡️ Aplikasi K3 AR Safety',
+                'subtitle': 'Implementasi Dukungan Multi-Bahasa',
+                'implementation-title': '✅ Status Implementasi',
+                'context-title': 'Sistem Context Bahasa',
+                'context-desc': 'React Context untuk mengelola state bahasa',
+                'context-status': 'Selesai',
+                'switcher-title': 'Komponen Pengalih Bahasa',
+                'switcher-desc': 'Beralih antara Bahasa Inggris dan Indonesia',
+                'switcher-status': 'Selesai',
+                'translations-title': 'Sistem Terjemahan',
+                'translations-desc': 'Kunci terjemahan komprehensif untuk semua elemen UI',
+                'translations-status': 'Selesai',
+                'components-title': 'Update Komponen',
+                'components-desc': 'Komponen App, Dashboard, ARScanner, Auth telah diperbarui',
+                'components-status': 'Selesai',
+                'features-title': '🌟 Fitur Utama',
+                'persistent-title': 'Preferensi Bahasa Persisten',
+                'persistent-desc': 'Pilihan bahasa disimpan di localStorage',
+                'comprehensive-title': 'Cakupan Komprehensif',
+                'comprehensive-desc': 'Semua teks UI diterjemahkan termasuk navigasi, form, dan pesan',
+                'realtime-title': 'Pergantian Real-time',
+                'realtime-desc': 'Perubahan bahasa instan tanpa reload halaman',
+                'contextual-title': 'Terjemahan Kontekstual',
+                'contextual-desc': 'Terminologi keselamatan K3 yang spesifik industri',
+                'usage-title': '🚀 Cara Menggunakan',
+                'step1': 'Buka aplikasi K3 AR Safety di <strong>http://localhost:5174</strong>',
+                'step2': 'Cari tombol pengalih bahasa (EN/ID) di pojok kanan atas',
+                'step3': 'Klik "ID" untuk beralih ke Bahasa Indonesia',
+                'step4': 'Navigasi melalui berbagai bagian untuk melihat semua teks diterjemahkan',
+                'step5': 'Preferensi bahasa Anda akan diingat untuk kunjungan berikutnya'
+            }
+        };
+
+        let currentLang = 'en';
+
+        function switchLanguage(lang) {
+            currentLang = lang;
+            
+            // Update button states
+            document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+            document.getElementById('btn-id').classList.toggle('active', lang === 'id');
+            
+            // Update all text content
+            Object.keys(translations[lang]).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.innerHTML = translations[lang][key];
+                }
+            });
+        }
+    </script>
+</body>
+</html>
