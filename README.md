@@ -32,7 +32,7 @@ A comprehensive safety management application built with React, TypeScript, and 
 ## 🚀 Quick Start
 
 ### 🌐 Live Demo
-**🔗 [K3 AR Safety Application](https://k3ar-safety.netlify.app)**
+**🔗 [K3 AR Safety Application](https://k3ar.netlify.app)**
 
 *Experience the full AR safety detection system in your browser!*
 
@@ -66,7 +66,7 @@ http://localhost:5174
 
 ### 🚀 Deployment
 The application is automatically deployed to Netlify from the main branch:
-- **Production URL**: https://k3ar-safety.netlify.app
+- **Production URL**: https://k3ar.netlify.app
 - **Auto-deploy**: Enabled on push to main branch
 - **Build Command**: `npm run build`
 - **Publish Directory**: `dist`
