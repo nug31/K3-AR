@@ -54,9 +54,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 2. Detect missing PPE (looking for skin color in work areas) - VERY STRICT
+    // 2. Detect missing PPE (looking for skin color in work areas) - BALANCED
     const ppeDetection = this.detectMissingPPE(data, width, height);
-    if (ppeDetection.confidence > 0.8) { // Very high threshold with human shape validation
+    if (ppeDetection.confidence > 0.4) { // Balanced threshold with comprehensive validation
       detections.push({
         type: 'missing_ppe',
         name: 'Pekerja Tanpa APD',
@@ -262,29 +262,28 @@ class CVDetectionEngine {
     // Very strict confidence calculation with human shape validation
     const skinDensity = skinPixels / totalPixels;
     const hasSignificantSkinClusters = skinClusters > (skinPixels * 0.4); // Increased from 0.3
-    const hasHandExposure = handAreaSkin > (width * height * 0.025); // Increased threshold significantly
-    const hasHeadExposure = headAreaSkin > (width * height * 0.015); // Increased threshold significantly
-    const hasHumanShape = humanShapeScore > 0.5; // Increased - require strong human shape
-    const hasHumanProportions = aspectRatioScore > 0.6; // Increased - require strong proportions
-    const hasMinimumSkinArea = skinPixels > (width * height * 0.02); // Require at least 2% skin
+    const hasHandExposure = handAreaSkin > (width * height * 0.015); // Balanced threshold for hands
+    const hasHeadExposure = headAreaSkin > (width * height * 0.008); // Balanced threshold for head
+    const hasHumanShape = humanShapeScore > 0.3; // Balanced - require reasonable human shape
+    const hasHumanProportions = aspectRatioScore > 0.4; // Balanced - require reasonable proportions
+    const hasMinimumSkinArea = skinPixels > (width * height * 0.015); // Require at least 1.5% skin
 
     let confidence = 0;
 
-    // Extremely strict requirements - must have ALL conditions
+    // Balanced requirements - reasonable validation for real human detection
     if (hasSignificantSkinClusters && hasHumanShape && hasHumanProportions &&
-        hasMinimumSkinArea && (hasHandExposure || hasHeadExposure) && skinDensity > 0.01) {
+        hasMinimumSkinArea && (hasHandExposure || hasHeadExposure) && skinDensity > 0.005) {
 
-      // Additional validation: check for clothing/body context
+      // Optional clothing context validation (not mandatory)
       const hasClothingContext = this.detectClothingContext(data, width, height, skinMap);
+      const contextMultiplier = hasClothingContext ? 1.0 : 0.7; // Reduce confidence if no clothing context
 
-      if (hasClothingContext) {
-        if (hasHandExposure && hasHeadExposure) {
-          confidence = Math.min(skinDensity * 15 * humanShapeScore, 0.8); // Reduced max confidence
-        } else if (hasHandExposure) {
-          confidence = Math.min(skinDensity * 12 * humanShapeScore, 0.6); // Hands exposed
-        } else if (hasHeadExposure) {
-          confidence = Math.min(skinDensity * 10 * humanShapeScore, 0.5); // Head exposed
-        }
+      if (hasHandExposure && hasHeadExposure) {
+        confidence = Math.min(skinDensity * 20 * humanShapeScore * contextMultiplier, 0.9);
+      } else if (hasHandExposure) {
+        confidence = Math.min(skinDensity * 15 * humanShapeScore * contextMultiplier, 0.7);
+      } else if (hasHeadExposure) {
+        confidence = Math.min(skinDensity * 12 * humanShapeScore * contextMultiplier, 0.6);
       }
     }
 
@@ -621,14 +620,14 @@ class CVDetectionEngine {
 
     const normalizedSkin = nr > 0.36 && ng > 0.28 && ng < 0.363 && nb < 0.32;
 
-    // Much stricter - require at least 3 algorithms to agree
+    // Balanced - require at least 2 algorithms to agree for better detection
     const votes = [traditional, hsvSkin, ycbcrSkin, normalizedSkin].filter(Boolean).length;
 
     // Additional brightness check to avoid false positives from bright surfaces
     const brightness = (r + g + b) / 3;
     const isReasonableBrightness = brightness > 60 && brightness < 200;
 
-    return votes >= 3 && isReasonableBrightness;
+    return votes >= 2 && isReasonableBrightness;
   }
 
   // Enhanced helper function to detect floor color
