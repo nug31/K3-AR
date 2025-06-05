@@ -161,7 +161,7 @@ This project is licensed under the MIT License.
 ## 🙏 Acknowledgments
 
 - Built with [Convex](https://convex.dev) as backend
-- Created with [Chef](https://chef.convex.dev) template
+- Created with K3AR Safety Framework
 - Designed for safety professionals
 - Optimized for Indonesian workshop environments
 

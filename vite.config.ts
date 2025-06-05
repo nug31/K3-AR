@@ -8,16 +8,16 @@ export default defineConfig(({ mode }) => ({
     react(),
     // The code below enables dev tools like taking screenshots of your site
     // while it is being developed on chef.convex.dev.
-    // Feel free to remove this code if you're no longer developing your app with Chef.
+    // Feel free to remove this code if you're no longer developing your app with K3AR.
     mode === "development"
       ? {
-          name: "inject-chef-dev",
+          name: "inject-k3ar-dev",
           transform(code: string, id: string) {
             if (id.includes("main.tsx")) {
               return {
                 code: `${code}
 
-/* Added by Vite plugin inject-chef-dev */
+/* Added by Vite plugin inject-k3ar-dev */
 window.addEventListener('message', async (message) => {
   if (message.source !== window.parent) return;
   if (message.data.type !== 'chefPreviewRequest') return;
