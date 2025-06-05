@@ -9,6 +9,10 @@ class CVDetectionEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private detectionCallbacks: ((detections: any[]) => void)[] = [];
+  private lastDetectionTime = 0;
+  private detectionCooldown = 3000; // 3 seconds between detections
+  private recentDetections: Map<string, number> = new Map(); // Track recent detections by type
+  private detectionSuppressionTime = 10000; // 10 seconds suppression for same hazard type
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -34,16 +38,22 @@ class CVDetectionEngine {
     });
   }
 
-  // Advanced detection algorithms
+  // Advanced detection algorithms with suppression logic
   private performDetection(imageData: ImageData): any[] {
     const detections: any[] = [];
     const data = imageData.data;
     const width = imageData.width;
     const height = imageData.height;
+    const currentTime = Date.now();
 
-    // 1. Detect exposed wires (looking for thin dark lines) - ENHANCED FOR CABLES
+    // Check if we should suppress detections based on cooldown
+    if (currentTime - this.lastDetectionTime < this.detectionCooldown) {
+      return [];
+    }
+
+    // 1. Detect exposed wires (looking for thin dark lines) - BALANCED DETECTION
     const wireDetection = this.detectExposedWires(data, width, height);
-    if (wireDetection.confidence > 0.25) { // Lowered significantly for better cable detection
+    if (wireDetection.confidence > 0.5) { // Balanced threshold to avoid false positives
       detections.push({
         type: 'exposed_wire',
         name: 'Kabel Listrik Terbuka',
@@ -80,9 +90,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 4. Detect unsafe object placement (looking for objects in walkways) - ENHANCED FOR CABLES
+    // 4. Detect unsafe object placement (looking for objects in walkways) - BALANCED DETECTION
     const unsafePlacementDetection = this.detectUnsafeObjectPlacement(data, width, height);
-    if (unsafePlacementDetection.confidence > 0.4) { // Lowered for better object detection
+    if (unsafePlacementDetection.confidence > 0.6) { // Higher threshold to avoid false positives
       detections.push({
         type: 'unsafe_placement',
         name: 'Penempatan Barang Tidak Aman',
@@ -106,7 +116,24 @@ class CVDetectionEngine {
       });
     }
 
-    return detections;
+    // Filter out recently detected hazards to avoid spam
+    const filteredDetections = detections.filter(detection => {
+      const lastDetected = this.recentDetections.get(detection.type);
+      if (lastDetected && (currentTime - lastDetected) < this.detectionSuppressionTime) {
+        return false; // Skip this detection type if detected recently
+      }
+      return true;
+    });
+
+    // Update recent detections map and last detection time
+    if (filteredDetections.length > 0) {
+      filteredDetections.forEach(detection => {
+        this.recentDetections.set(detection.type, currentTime);
+      });
+      this.lastDetectionTime = currentTime;
+    }
+
+    return filteredDetections;
   }
 
   // Detect exposed wires using improved edge detection
@@ -173,14 +200,18 @@ class CVDetectionEngine {
       }
     }
 
-    // Enhanced confidence calculation for cable detection
-    const minWirePixels = width * height * 0.0003; // Lowered minimum pixels
-    const hasLineSegments = lineSegments > 2; // Relaxed line segment requirement
+    // Stricter confidence calculation to avoid false positives
+    const minWirePixels = width * height * 0.001; // Increased minimum pixels requirement
+    const hasLineSegments = lineSegments > 5; // Stricter line segment requirement
     const edgeDensity = totalEdges / (width * height);
+    const wireToEdgeRatio = totalEdges > 0 ? wirePixels / totalEdges : 0;
 
     let confidence = 0;
-    if (wirePixels > minWirePixels && hasLineSegments && edgeDensity < 0.4) {
-      confidence = Math.min((wirePixels / minWirePixels) * 0.4, 0.9); // Increased confidence
+    // Much stricter requirements: need significant wire pixels, multiple line segments,
+    // reasonable edge density, and good wire-to-edge ratio
+    if (wirePixels > minWirePixels && hasLineSegments && edgeDensity < 0.3 &&
+        wireToEdgeRatio > 0.1 && wirePixels > 50) {
+      confidence = Math.min((wirePixels / minWirePixels) * 0.3, 0.7); // Reduced max confidence
     }
 
     return {
@@ -521,16 +552,16 @@ class CVDetectionEngine {
       }
     }
 
-    // Enhanced confidence calculation
+    // Stricter confidence calculation to avoid false positives
     const obstacleRatio = floorArea > 0 ? obstaclePixels / floorArea : 0;
     const cableRatio = floorArea > 0 ? cablePixels / floorArea : 0;
 
-    // Higher confidence if cables are detected on floor
+    // Much stricter thresholds to avoid false positives
     let confidence = 0;
-    if (cableRatio > 0.01) { // Cables on floor
-      confidence = Math.min(cableRatio * 20, 0.9);
-    } else if (obstacleRatio > 0.05) { // General obstacles
-      confidence = Math.min(obstacleRatio * 8, 0.8);
+    if (cableRatio > 0.03 && cablePixels > 100) { // Significant cables on floor
+      confidence = Math.min(cableRatio * 15, 0.8);
+    } else if (obstacleRatio > 0.1 && obstaclePixels > 200) { // Significant obstacles
+      confidence = Math.min(obstacleRatio * 6, 0.7);
     }
 
     return {
