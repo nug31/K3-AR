@@ -4,12 +4,301 @@ import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { useLanguage } from "../contexts/LanguageContext";
 
+// Computer Vision Detection Engine
+class CVDetectionEngine {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private detectionCallbacks: ((detections: any[]) => void)[] = [];
+
+  constructor() {
+    this.canvas = document.createElement('canvas');
+    this.ctx = this.canvas.getContext('2d')!;
+  }
+
+  // Analyze video frame for safety violations
+  analyzeFrame(video: HTMLVideoElement): Promise<any[]> {
+    return new Promise((resolve) => {
+      if (!video.videoWidth || !video.videoHeight) {
+        resolve([]);
+        return;
+      }
+
+      this.canvas.width = video.videoWidth;
+      this.canvas.height = video.videoHeight;
+      this.ctx.drawImage(video, 0, 0);
+
+      const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      const detections = this.performDetection(imageData);
+
+      resolve(detections);
+    });
+  }
+
+  // Advanced detection algorithms
+  private performDetection(imageData: ImageData): any[] {
+    const detections: any[] = [];
+    const data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+
+    // 1. Detect exposed wires (looking for thin dark lines)
+    const wireDetection = this.detectExposedWires(data, width, height);
+    if (wireDetection.confidence > 0.6) {
+      detections.push({
+        type: 'exposed_wire',
+        name: 'Kabel Listrik Terbuka',
+        confidence: wireDetection.confidence,
+        position: wireDetection.position,
+        riskLevel: 'high',
+        category: 'electrical'
+      });
+    }
+
+    // 2. Detect missing PPE (looking for skin color in work areas)
+    const ppeDetection = this.detectMissingPPE(data, width, height);
+    if (ppeDetection.confidence > 0.7) {
+      detections.push({
+        type: 'missing_ppe',
+        name: 'Pekerja Tanpa APD',
+        confidence: ppeDetection.confidence,
+        position: ppeDetection.position,
+        riskLevel: 'critical',
+        category: 'safety'
+      });
+    }
+
+    // 3. Detect cluttered workspace (looking for scattered objects)
+    const clutterDetection = this.detectClutteredWorkspace(data, width, height);
+    if (clutterDetection.confidence > 0.5) {
+      detections.push({
+        type: 'cluttered_workspace',
+        name: 'Area Kerja Berantakan',
+        confidence: clutterDetection.confidence,
+        position: clutterDetection.position,
+        riskLevel: 'medium',
+        category: 'organization'
+      });
+    }
+
+    // 4. Detect unsafe object placement (looking for objects in walkways)
+    const unsafePlacementDetection = this.detectUnsafeObjectPlacement(data, width, height);
+    if (unsafePlacementDetection.confidence > 0.6) {
+      detections.push({
+        type: 'unsafe_placement',
+        name: 'Penempatan Barang Tidak Aman',
+        confidence: unsafePlacementDetection.confidence,
+        position: unsafePlacementDetection.position,
+        riskLevel: 'high',
+        category: 'organization'
+      });
+    }
+
+    // 5. Detect fire hazards (looking for red/orange colors indicating heat/fire)
+    const fireHazardDetection = this.detectFireHazards(data, width, height);
+    if (fireHazardDetection.confidence > 0.8) {
+      detections.push({
+        type: 'fire_hazard',
+        name: 'Potensi Bahaya Kebakaran',
+        confidence: fireHazardDetection.confidence,
+        position: fireHazardDetection.position,
+        riskLevel: 'critical',
+        category: 'fire'
+      });
+    }
+
+    return detections;
+  }
+
+  // Detect exposed wires using edge detection
+  private detectExposedWires(data: Uint8ClampedArray, width: number, height: number) {
+    let wirePixels = 0;
+    let totalEdges = 0;
+    let avgX = 0, avgY = 0;
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        // Edge detection (simplified Sobel)
+        const gx = Math.abs(data[((y-1)*width+(x-1))*4] - data[((y-1)*width+(x+1))*4]);
+        const gy = Math.abs(data[((y-1)*width+x)*4] - data[((y+1)*width+x)*4]);
+        const edge = Math.sqrt(gx*gx + gy*gy);
+
+        if (edge > 50) {
+          totalEdges++;
+          // Look for dark, thin lines (potential wires)
+          if (r < 80 && g < 80 && b < 80) {
+            wirePixels++;
+            avgX += x;
+            avgY += y;
+          }
+        }
+      }
+    }
+
+    const confidence = wirePixels > 0 ? Math.min(wirePixels / (width * height * 0.001), 1) : 0;
+    return {
+      confidence,
+      position: wirePixels > 0 ? {
+        x: (avgX / wirePixels / width) * 100,
+        y: (avgY / wirePixels / height) * 100
+      } : { x: 50, y: 50 }
+    };
+  }
+
+  // Detect missing PPE by looking for exposed skin
+  private detectMissingPPE(data: Uint8ClampedArray, width: number, height: number) {
+    let skinPixels = 0;
+    let totalPixels = width * height;
+    let avgX = 0, avgY = 0;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        // Skin color detection (simplified)
+        if (this.isSkinColor(r, g, b)) {
+          skinPixels++;
+          avgX += x;
+          avgY += y;
+        }
+      }
+    }
+
+    const confidence = skinPixels > 0 ? Math.min(skinPixels / (totalPixels * 0.05), 1) : 0;
+    return {
+      confidence,
+      position: skinPixels > 0 ? {
+        x: (avgX / skinPixels / width) * 100,
+        y: (avgY / skinPixels / height) * 100
+      } : { x: 50, y: 30 }
+    };
+  }
+
+  // Detect cluttered workspace using texture analysis
+  private detectClutteredWorkspace(data: Uint8ClampedArray, width: number, height: number) {
+    let variance = 0;
+    let mean = 0;
+    let totalPixels = width * height;
+
+    // Calculate mean brightness
+    for (let i = 0; i < data.length; i += 4) {
+      mean += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+    mean /= totalPixels;
+
+    // Calculate variance (measure of clutter)
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      variance += Math.pow(brightness - mean, 2);
+    }
+    variance /= totalPixels;
+
+    const confidence = Math.min(variance / 10000, 1);
+    return {
+      confidence,
+      position: { x: 50, y: 70 }
+    };
+  }
+
+  // Detect unsafe object placement in walkways
+  private detectUnsafeObjectPlacement(data: Uint8ClampedArray, width: number, height: number) {
+    let obstaclePixels = 0;
+    let floorArea = 0;
+
+    // Focus on bottom third of image (floor area)
+    const startY = Math.floor(height * 0.66);
+
+    for (let y = startY; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        floorArea++;
+
+        // Detect objects on floor (non-floor colors)
+        if (!this.isFloorColor(r, g, b)) {
+          obstaclePixels++;
+        }
+      }
+    }
+
+    const confidence = floorArea > 0 ? Math.min(obstaclePixels / (floorArea * 0.1), 1) : 0;
+    return {
+      confidence,
+      position: { x: 50, y: 80 }
+    };
+  }
+
+  // Detect fire hazards by looking for heat signatures
+  private detectFireHazards(data: Uint8ClampedArray, width: number, height: number) {
+    let hotPixels = 0;
+    let totalPixels = width * height;
+    let avgX = 0, avgY = 0;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+
+        // Detect hot colors (red/orange dominant)
+        if (r > 180 && g > 100 && g < 180 && b < 100) {
+          hotPixels++;
+          avgX += x;
+          avgY += y;
+        }
+      }
+    }
+
+    const confidence = hotPixels > 0 ? Math.min(hotPixels / (totalPixels * 0.01), 1) : 0;
+    return {
+      confidence,
+      position: hotPixels > 0 ? {
+        x: (avgX / hotPixels / width) * 100,
+        y: (avgY / hotPixels / height) * 100
+      } : { x: 50, y: 50 }
+    };
+  }
+
+  // Helper function to detect skin color
+  private isSkinColor(r: number, g: number, b: number): boolean {
+    return r > 95 && g > 40 && b > 20 &&
+           r > g && r > b &&
+           Math.abs(r - g) > 15 &&
+           r - b > 15;
+  }
+
+  // Helper function to detect floor color
+  private isFloorColor(r: number, g: number, b: number): boolean {
+    // Typical floor colors (gray, brown, white)
+    const isGray = Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30;
+    const isBrown = r > 100 && g > 60 && b < 80 && r > g && g > b;
+    const isWhite = r > 200 && g > 200 && b > 200;
+
+    return isGray || isBrown || isWhite;
+  }
+}
+
 export function ARScanner() {
   const [isScanning, setIsScanning] = useState(false);
   const [detectedHazards, setDetectedHazards] = useState<any[]>([]);
   const [currentLocation, setCurrentLocation] = useState("Bengkel TKR");
+  const [cvDetections, setCvDetections] = useState<any[]>([]);
+  const [isAutoDetectionEnabled, setIsAutoDetectionEnabled] = useState(true);
+  const [detectionSensitivity, setDetectionSensitivity] = useState(0.7);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cvEngineRef = useRef<CVDetectionEngine | null>(null);
   const [sessionId, setSessionId] = useState<any>(null);
   const { t } = useLanguage();
 
@@ -21,12 +310,17 @@ export function ARScanner() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
       });
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
+      }
+
+      // Initialize CV Detection Engine
+      if (!cvEngineRef.current) {
+        cvEngineRef.current = new CVDetectionEngine();
       }
 
       const deviceInfo = {
@@ -70,7 +364,11 @@ export function ARScanner() {
 
   // Enhanced hazard detection with visual scanning simulation
   const simulateHazardDetection = () => {
-    if (!hazards || hazards.length === 0) return;
+    if (!hazards || hazards.length === 0) {
+      // Show message if no hazards available
+      toast.info('⚠️ No hazard data available. Please add hazards to database first.');
+      return;
+    }
 
     // Enhanced object detection simulation based on location
     const locationBasedObjects = {
@@ -125,19 +423,158 @@ export function ARScanner() {
           if ('vibrate' in navigator) {
             navigator.vibrate([200, 100, 200]);
           }
+        } else {
+          // If hazard already detected, show message
+          toast.info('🔍 Hazard already detected. Clear detected hazards to test again.');
         }
       }
+    } else {
+      // Show message when detection fails due to probability
+      toast.info('🔍 No hazards detected in this scan. Try again!');
+    }
+  };
+
+  // Sample hazards for testing when database is empty
+  const sampleHazards = [
+    {
+      _id: 'sample-1',
+      name: 'Kabel Listrik Terbuka',
+      description: 'Kabel listrik yang tidak terlindungi',
+      category: 'electrical',
+      riskLevel: 'high',
+      location: currentLocation,
+      detectionKeywords: ['wire', 'electrical', 'cable']
+    },
+    {
+      _id: 'sample-2',
+      name: 'Lantai Licin',
+      description: 'Lantai yang licin karena tumpahan oli',
+      category: 'slip',
+      riskLevel: 'medium',
+      location: currentLocation,
+      detectionKeywords: ['floor', 'oil', 'slip']
+    },
+    {
+      _id: 'sample-3',
+      name: 'Mesin Tanpa Pelindung',
+      description: 'Mesin yang beroperasi tanpa safety guard',
+      category: 'machinery',
+      riskLevel: 'critical',
+      location: currentLocation,
+      detectionKeywords: ['machinery', 'equipment', 'cutting']
+    }
+  ];
+
+  // Force detection for testing - always works
+  const forceDetection = () => {
+    console.log('🔍 Force detection triggered!');
+    console.log('Hazards from database:', hazards?.length || 0);
+    console.log('Currently detected hazards:', detectedHazards.length);
+
+    const availableHazards = hazards && hazards.length > 0 ? hazards : sampleHazards;
+    const undetectedHazards = availableHazards.filter(h => !detectedHazards.find(d => d._id === h._id));
+
+    console.log('Available hazards for detection:', undetectedHazards.length);
+
+    if (undetectedHazards.length === 0) {
+      toast.info('🔍 All hazards already detected. Clear detected hazards to test again.');
+      return;
+    }
+
+    const hazardToAdd = undetectedHazards[Math.floor(Math.random() * undetectedHazards.length)];
+
+    setDetectedHazards(prev => [...prev, {
+      ...hazardToAdd,
+      detectedAt: Date.now(),
+      position: {
+        x: Math.random() * 80 + 10, // 10-90% from left
+        y: Math.random() * 60 + 20  // 20-80% from top
+      }
+    }]);
+
+    // Enhanced notification with sound
+    toast.success(`✅ ${t('ar.hazard_detected')}: ${hazardToAdd.name}`, {
+      duration: 4000,
+      action: {
+        label: t('common.view'),
+        onClick: () => console.log('View hazard details')
+      }
+    });
+
+    // Vibrate if supported
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 100, 200]);
+    }
+  };
+
+  // Auto detection using computer vision
+  const performAutoDetection = async () => {
+    if (!videoRef.current || !cvEngineRef.current || !isAutoDetectionEnabled) return;
+
+    try {
+      const detections = await cvEngineRef.current.analyzeFrame(videoRef.current);
+
+      detections.forEach(detection => {
+        // Check if this type of hazard is already detected
+        const existingHazard = detectedHazards.find(h => h.type === detection.type);
+
+        if (!existingHazard && detection.confidence >= detectionSensitivity) {
+          const newHazard = {
+            _id: `cv_${detection.type}_${Date.now()}`,
+            name: detection.name,
+            description: `Terdeteksi otomatis: ${detection.name}`,
+            category: detection.category,
+            riskLevel: detection.riskLevel,
+            location: currentLocation,
+            detectedAt: Date.now(),
+            position: detection.position,
+            confidence: detection.confidence,
+            detectionMethod: 'computer_vision',
+            type: detection.type
+          };
+
+          setDetectedHazards(prev => [...prev, newHazard]);
+
+          // Enhanced notification with confidence level
+          toast.warning(`🤖 ${t('ar.hazard_detected')}: ${detection.name}`, {
+            duration: 5000,
+            description: `Confidence: ${Math.round(detection.confidence * 100)}%`,
+            action: {
+              label: t('common.view'),
+              onClick: () => console.log('View CV detection details', detection)
+            }
+          });
+
+          // Vibrate if supported
+          if ('vibrate' in navigator) {
+            navigator.vibrate([300, 100, 300, 100, 300]);
+          }
+
+          console.log('🤖 CV Detection:', detection);
+        }
+      });
+
+      setCvDetections(detections);
+    } catch (error) {
+      console.error('CV Detection error:', error);
     }
   };
 
   useEffect(() => {
     if (isScanning) {
-      // Start detection immediately, then every 1.5 seconds for faster detection
+      // Start both traditional and CV detection
       simulateHazardDetection();
-      const interval = setInterval(simulateHazardDetection, 1500);
-      return () => clearInterval(interval);
+      performAutoDetection();
+
+      const traditionalInterval = setInterval(simulateHazardDetection, 3000);
+      const cvInterval = setInterval(performAutoDetection, 2000); // CV detection every 2 seconds
+
+      return () => {
+        clearInterval(traditionalInterval);
+        clearInterval(cvInterval);
+      };
     }
-  }, [isScanning, hazards, currentLocation]);
+  }, [isScanning, hazards, currentLocation, isAutoDetectionEnabled, detectionSensitivity]);
 
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
@@ -193,6 +630,16 @@ export function ARScanner() {
               </div>
             </div>
 
+            {/* AI Detection Status */}
+            {isAutoDetectionEnabled && (
+              <div className="absolute top-2 md:top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                  🤖 AI Detection
+                </div>
+              </div>
+            )}
+
             {/* Location indicator with enhanced styling */}
             <div className="absolute top-2 md:top-4 right-2 md:right-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 md:px-4 py-2 rounded-full text-xs md:text-sm shadow-lg">
               📍 {currentLocation}
@@ -216,28 +663,53 @@ export function ARScanner() {
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                {/* Hazard marker with pulsing effect */}
+                {/* Hazard marker with different styles for CV vs traditional detection */}
                 <div className="relative">
-                  <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75 w-6 h-6"></div>
-                  <div className="relative bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg">
-                    ⚠️
-                  </div>
+                  {hazard.detectionMethod === 'computer_vision' ? (
+                    <>
+                      <div className="absolute inset-0 bg-purple-500 rounded-full animate-ping opacity-75 w-8 h-8"></div>
+                      <div className="relative bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white">
+                        🤖
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75 w-6 h-6"></div>
+                      <div className="relative bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-lg">
+                        ⚠️
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* Hazard info popup */}
-                <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 text-white p-3 rounded-lg shadow-xl max-w-xs min-w-max">
+                {/* Hazard info popup with enhanced info for CV detections */}
+                <div className={`absolute top-10 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-90 text-white p-3 rounded-lg shadow-xl max-w-xs min-w-max ${
+                  hazard.detectionMethod === 'computer_vision' ? 'border-2 border-purple-400' : ''
+                }`}>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">⚠️</span>
+                    <span className="text-lg">
+                      {hazard.detectionMethod === 'computer_vision' ? '🤖' : '⚠️'}
+                    </span>
                     <div>
                       <div className="font-semibold text-sm">{hazard.name}</div>
                       <div className="text-xs opacity-90">{t(`category.${hazard.category}`)}</div>
+                      {hazard.confidence && (
+                        <div className="text-xs text-purple-300 mt-1">
+                          AI Confidence: {Math.round(hazard.confidence * 100)}%
+                        </div>
+                      )}
                       <div className={`text-xs px-2 py-1 rounded mt-1 ${getRiskColor(hazard.riskLevel)}`}>
                         {t(`risk.${hazard.riskLevel}`).toUpperCase()}
                       </div>
+                      {hazard.detectionMethod === 'computer_vision' && (
+                        <div className="text-xs text-purple-200 mt-1 italic">
+                          Detected by AI Computer Vision
+                        </div>
+                      )}
                     </div>
                   </div>
                   {/* Arrow pointing to marker */}
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-black border-opacity-80"></div>
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-black border-opacity-90"></div>
                 </div>
               </div>
             ))}
@@ -298,7 +770,7 @@ export function ARScanner() {
                   ⏹️ {t('ar.stop_scanning')}
                 </button>
                 <button
-                  onClick={simulateHazardDetection}
+                  onClick={forceDetection}
                   className="btn-primary px-4 py-4 md:py-3 text-sm md:text-base"
                   style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}
                 >
@@ -306,6 +778,61 @@ export function ARScanner() {
                 </button>
               </>
             )}
+          </div>
+
+          {/* Auto Detection Controls */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-blue-800">
+                🤖 Auto Detection (AI Computer Vision)
+              </label>
+              <button
+                onClick={() => setIsAutoDetectionEnabled(!isAutoDetectionEnabled)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  isAutoDetectionEnabled
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-300 text-gray-600'
+                }`}
+              >
+                {isAutoDetectionEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="mb-2">
+              <label className="text-xs text-blue-700 block mb-1">
+                Detection Sensitivity: {Math.round(detectionSensitivity * 100)}%
+              </label>
+              <input
+                type="range"
+                min="0.3"
+                max="0.9"
+                step="0.1"
+                value={detectionSensitivity}
+                onChange={(e) => setDetectionSensitivity(parseFloat(e.target.value))}
+                className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
+                disabled={!isAutoDetectionEnabled}
+              />
+              <div className="flex justify-between text-xs text-blue-600 mt-1">
+                <span>Low</span>
+                <span>Medium</span>
+                <span>High</span>
+              </div>
+            </div>
+
+            <div className="text-xs text-blue-600">
+              <div className="grid grid-cols-2 gap-2">
+                <div>✅ Detects: Missing PPE</div>
+                <div>✅ Detects: Exposed Wires</div>
+                <div>✅ Detects: Cluttered Areas</div>
+                <div>✅ Detects: Unsafe Placement</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Debug info */}
+          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+            📊 Debug: {hazards?.length || 0} hazards in DB | {detectedHazards.length} detected |
+            CV: {cvDetections.length} objects | Location: {currentLocation}
           </div>
 
           {/* Detection summary */}

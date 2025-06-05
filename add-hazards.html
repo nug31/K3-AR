@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Sample Hazards - K3 AR Safety</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .hazard-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 4px solid #fee140;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 K3 AR Safety - Add Sample Hazards</h1>
+        <p>Click the button below to add sample hazard data to your database:</p>
+        
+        <button onclick="addSampleHazards()">📊 Add Sample Hazards</button>
+        <button onclick="clearAllHazards()">🗑️ Clear All Hazards</button>
+        
+        <div id="status"></div>
+        
+        <h2>📋 Sample Hazards to be Added:</h2>
+        <div class="hazard-item">
+            <strong>🔌 Kabel Listrik Terbuka</strong><br>
+            Category: Electrical | Risk: High | Location: Bengkel TKR
+        </div>
+        <div class="hazard-item">
+            <strong>🛠️ Mesin Gerinda Tanpa Pelindung</strong><br>
+            Category: Machinery | Risk: Critical | Location: Bengkel Mesin
+        </div>
+        <div class="hazard-item">
+            <strong>🔥 Komponen Elektronik Panas</strong><br>
+            Category: Fire | Risk: Medium | Location: Bengkel Elind
+        </div>
+        <div class="hazard-item">
+            <strong>🛢️ Tumpahan Oli di Lantai</strong><br>
+            Category: Slip | Risk: Medium | Location: Bengkel TSM
+        </div>
+        <div class="hazard-item">
+            <strong>💻 Server Overheating</strong><br>
+            Category: Fire | Risk: High | Location: Bengkel TKI
+        </div>
+        <div class="hazard-item">
+            <strong>⚗️ Bahan Kimia Tidak Berlabel</strong><br>
+            Category: Chemical | Risk: Critical | Location: Gudang
+        </div>
+        <div class="hazard-item">
+            <strong>💡 Pencahayaan Kurang</strong><br>
+            Category: Environmental | Risk: Low | Location: Other
+        </div>
+    </div>
+
+    <script type="module">
+        import { ConvexHttpClient } from "https://cdn.skypack.dev/convex/browser";
+        
+        const client = new ConvexHttpClient("https://terrific-giraffe-753.convex.cloud");
+        
+        const sampleHazards = [
+            {
+                name: "Kabel Listrik Terbuka",
+                description: "Kabel listrik yang tidak terlindungi dapat menyebabkan sengatan listrik",
+                category: "electrical",
+                riskLevel: "high",
+                location: "Bengkel TKR",
+                detectionKeywords: ["wire", "electrical", "cable", "power", "voltage"],
+                preventionSteps: [
+                    "Matikan sumber listrik sebelum bekerja",
+                    "Gunakan sarung tangan isolasi",
+                    "Periksa kondisi kabel secara berkala",
+                    "Tutup kabel dengan isolasi yang tepat"
+                ]
+            },
+            {
+                name: "Mesin Gerinda Tanpa Pelindung",
+                description: "Mesin gerinda yang dioperasikan tanpa pelindung mata dapat menyebabkan cedera serius",
+                category: "machinery",
+                riskLevel: "critical",
+                location: "Bengkel Mesin",
+                detectionKeywords: ["machinery", "grinder", "metal", "cutting", "sparks"],
+                preventionSteps: [
+                    "Selalu gunakan kacamata pelindung",
+                    "Pastikan pelindung mesin terpasang",
+                    "Gunakan sarung tangan anti-slip",
+                    "Periksa kondisi mata gerinda"
+                ]
+            },
+            {
+                name: "Komponen Elektronik Panas",
+                description: "Komponen elektronik yang overheating dapat menyebabkan kebakaran",
+                category: "fire",
+                riskLevel: "medium",
+                location: "Bengkel Elind",
+                detectionKeywords: ["circuit", "electronic", "component", "heat", "overheating"],
+                preventionSteps: [
+                    "Monitor suhu komponen secara berkala",
+                    "Pastikan ventilasi yang cukup",
+                    "Gunakan heat sink yang tepat",
+                    "Matikan perangkat jika terlalu panas"
+                ]
+            },
+            {
+                name: "Tumpahan Oli di Lantai",
+                description: "Oli yang tumpah di lantai dapat menyebabkan terpeleset dan jatuh",
+                category: "slip",
+                riskLevel: "medium",
+                location: "Bengkel TSM",
+                detectionKeywords: ["oil", "spill", "floor", "slippery", "fuel"],
+                preventionSteps: [
+                    "Bersihkan tumpahan segera",
+                    "Gunakan material penyerap oli",
+                    "Pasang tanda peringatan",
+                    "Gunakan alas kaki anti-slip"
+                ]
+            },
+            {
+                name: "Server Overheating",
+                description: "Server yang terlalu panas dapat menyebabkan kerusakan sistem dan kebakaran",
+                category: "fire",
+                riskLevel: "high",
+                location: "Bengkel TKI",
+                detectionKeywords: ["server", "computer", "overheating", "ventilation", "cooling"],
+                preventionSteps: [
+                    "Periksa sistem pendingin",
+                    "Bersihkan debu pada kipas",
+                    "Monitor suhu ruangan",
+                    "Pastikan sirkulasi udara baik"
+                ]
+            },
+            {
+                name: "Bahan Kimia Tidak Berlabel",
+                description: "Bahan kimia tanpa label yang jelas dapat menyebabkan keracunan atau reaksi berbahaya",
+                category: "chemical",
+                riskLevel: "critical",
+                location: "Gudang",
+                detectionKeywords: ["chemical", "storage", "container", "unlabeled", "hazardous"],
+                preventionSteps: [
+                    "Label semua bahan kimia dengan jelas",
+                    "Simpan di tempat yang aman",
+                    "Gunakan APD saat menangani",
+                    "Pisahkan bahan yang tidak kompatibel"
+                ]
+            },
+            {
+                name: "Pencahayaan Kurang",
+                description: "Pencahayaan yang tidak memadai dapat menyebabkan kecelakaan kerja",
+                category: "environmental",
+                riskLevel: "low",
+                location: "Other",
+                detectionKeywords: ["lighting", "dark", "visibility", "illumination", "lamp"],
+                preventionSteps: [
+                    "Tambah lampu penerangan",
+                    "Gunakan lampu kerja portable",
+                    "Periksa kondisi lampu secara berkala",
+                    "Bersihkan lampu dari debu"
+                ]
+            }
+        ];
+
+        window.addSampleHazards = async function() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<div class="status">🔄 Adding hazards to database...</div>';
+            
+            try {
+                for (const hazard of sampleHazards) {
+                    await client.mutation("hazards:create", hazard);
+                }
+                statusDiv.innerHTML = '<div class="status success">✅ Successfully added ' + sampleHazards.length + ' sample hazards!</div>';
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+            }
+        };
+
+        window.clearAllHazards = async function() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<div class="status">🗑️ Clearing all hazards...</div>';
+            
+            try {
+                const hazards = await client.query("hazards:list");
+                for (const hazard of hazards) {
+                    await client.mutation("hazards:remove", { id: hazard._id });
+                }
+                statusDiv.innerHTML = '<div class="status success">✅ All hazards cleared!</div>';
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+            }
+        };
+    </script>
+</body>
+</html>
