@@ -41,9 +41,9 @@ class CVDetectionEngine {
     const width = imageData.width;
     const height = imageData.height;
 
-    // 1. Detect exposed wires (looking for thin dark lines)
+    // 1. Detect exposed wires (looking for thin dark lines) - STRICTER
     const wireDetection = this.detectExposedWires(data, width, height);
-    if (wireDetection.confidence > 0.6) {
+    if (wireDetection.confidence > 0.4) { // Lowered from 0.6 but with stricter algorithm
       detections.push({
         type: 'exposed_wire',
         name: 'Kabel Listrik Terbuka',
@@ -54,9 +54,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 2. Detect missing PPE (looking for skin color in work areas)
+    // 2. Detect missing PPE (looking for skin color in work areas) - STRICTER
     const ppeDetection = this.detectMissingPPE(data, width, height);
-    if (ppeDetection.confidence > 0.7) {
+    if (ppeDetection.confidence > 0.5) { // Lowered from 0.7 but with stricter algorithm
       detections.push({
         type: 'missing_ppe',
         name: 'Pekerja Tanpa APD',
@@ -67,9 +67,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 3. Detect cluttered workspace (looking for scattered objects)
+    // 3. Detect cluttered workspace (looking for scattered objects) - HIGHER THRESHOLD
     const clutterDetection = this.detectClutteredWorkspace(data, width, height);
-    if (clutterDetection.confidence > 0.5) {
+    if (clutterDetection.confidence > 0.7) { // Increased from 0.5
       detections.push({
         type: 'cluttered_workspace',
         name: 'Area Kerja Berantakan',
@@ -80,9 +80,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 4. Detect unsafe object placement (looking for objects in walkways)
+    // 4. Detect unsafe object placement (looking for objects in walkways) - HIGHER THRESHOLD
     const unsafePlacementDetection = this.detectUnsafeObjectPlacement(data, width, height);
-    if (unsafePlacementDetection.confidence > 0.6) {
+    if (unsafePlacementDetection.confidence > 0.75) { // Increased from 0.6
       detections.push({
         type: 'unsafe_placement',
         name: 'Penempatan Barang Tidak Aman',
@@ -93,9 +93,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 5. Detect fire hazards (looking for red/orange colors indicating heat/fire)
+    // 5. Detect fire hazards (looking for red/orange colors indicating heat/fire) - HIGHEST THRESHOLD
     const fireHazardDetection = this.detectFireHazards(data, width, height);
-    if (fireHazardDetection.confidence > 0.8) {
+    if (fireHazardDetection.confidence > 0.85) { // Increased from 0.8
       detections.push({
         type: 'fire_hazard',
         name: 'Potensi Bahaya Kebakaran',
@@ -109,37 +109,79 @@ class CVDetectionEngine {
     return detections;
   }
 
-  // Detect exposed wires using edge detection
+  // Detect exposed wires using improved edge detection
   private detectExposedWires(data: Uint8ClampedArray, width: number, height: number) {
     let wirePixels = 0;
     let totalEdges = 0;
     let avgX = 0, avgY = 0;
+    let lineSegments = 0;
 
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
+    for (let y = 2; y < height - 2; y++) {
+      for (let x = 2; x < width - 2; x++) {
         const idx = (y * width + x) * 4;
         const r = data[idx];
         const g = data[idx + 1];
         const b = data[idx + 2];
 
-        // Edge detection (simplified Sobel)
+        // Enhanced edge detection with better thresholds
         const gx = Math.abs(data[((y-1)*width+(x-1))*4] - data[((y-1)*width+(x+1))*4]);
         const gy = Math.abs(data[((y-1)*width+x)*4] - data[((y+1)*width+x)*4]);
         const edge = Math.sqrt(gx*gx + gy*gy);
 
-        if (edge > 50) {
+        if (edge > 80) { // Higher threshold to reduce false positives
           totalEdges++;
-          // Look for dark, thin lines (potential wires)
-          if (r < 80 && g < 80 && b < 80) {
-            wirePixels++;
-            avgX += x;
-            avgY += y;
+
+          // More specific wire detection criteria
+          const isDarkLine = r < 60 && g < 60 && b < 60; // Darker threshold
+          const isMetallic = Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && r > 80; // Metallic colors
+          const isColoredWire = (r > 150 && g < 100 && b < 100) || // Red wire
+                               (g > 150 && r < 100 && b < 100) || // Green wire
+                               (b > 150 && r < 100 && g < 100) || // Blue wire
+                               (r > 150 && g > 150 && b < 100);   // Yellow wire
+
+          if (isDarkLine || isMetallic || isColoredWire) {
+            // Check for line continuity (wire-like patterns)
+            let continuity = 0;
+            for (let dx = -2; dx <= 2; dx++) {
+              for (let dy = -2; dy <= 2; dy++) {
+                if (x + dx >= 0 && x + dx < width && y + dy >= 0 && y + dy < height) {
+                  const checkIdx = ((y + dy) * width + (x + dx)) * 4;
+                  const checkR = data[checkIdx];
+                  const checkG = data[checkIdx + 1];
+                  const checkB = data[checkIdx + 2];
+
+                  if (Math.abs(checkR - r) < 30 && Math.abs(checkG - g) < 30 && Math.abs(checkB - b) < 30) {
+                    continuity++;
+                  }
+                }
+              }
+            }
+
+            if (continuity > 8) { // Require line continuity
+              wirePixels++;
+              avgX += x;
+              avgY += y;
+
+              // Check for line segments
+              if (continuity > 15) {
+                lineSegments++;
+              }
+            }
           }
         }
       }
     }
 
-    const confidence = wirePixels > 0 ? Math.min(wirePixels / (width * height * 0.001), 1) : 0;
+    // Much stricter confidence calculation
+    const minWirePixels = width * height * 0.0005; // Minimum pixels for wire detection
+    const hasLineSegments = lineSegments > 3; // Require multiple line segments
+    const edgeDensity = totalEdges / (width * height);
+
+    let confidence = 0;
+    if (wirePixels > minWirePixels && hasLineSegments && edgeDensity < 0.3) {
+      confidence = Math.min((wirePixels / minWirePixels) * 0.3, 0.8); // Max 80% confidence
+    }
+
     return {
       confidence,
       position: wirePixels > 0 ? {
@@ -149,11 +191,18 @@ class CVDetectionEngine {
     };
   }
 
-  // Detect missing PPE by looking for exposed skin
+  // Detect missing PPE by looking for exposed skin in work areas
   private detectMissingPPE(data: Uint8ClampedArray, width: number, height: number) {
     let skinPixels = 0;
+    let skinClusters = 0;
     let totalPixels = width * height;
     let avgX = 0, avgY = 0;
+    let handAreaSkin = 0;
+    let headAreaSkin = 0;
+
+    // Focus on specific body areas where PPE should be worn
+    const handAreaY = Math.floor(height * 0.6); // Lower 40% for hands
+    const headAreaY = Math.floor(height * 0.3); // Upper 30% for head
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -162,16 +211,59 @@ class CVDetectionEngine {
         const g = data[idx + 1];
         const b = data[idx + 2];
 
-        // Skin color detection (simplified)
+        // Enhanced skin color detection
         if (this.isSkinColor(r, g, b)) {
           skinPixels++;
           avgX += x;
           avgY += y;
+
+          // Count skin in specific areas
+          if (y > handAreaY) {
+            handAreaSkin++;
+          }
+          if (y < headAreaY) {
+            headAreaSkin++;
+          }
+
+          // Check for skin clusters (connected skin regions)
+          let neighboringSkin = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (x + dx >= 0 && x + dx < width && y + dy >= 0 && y + dy < height) {
+                const neighborIdx = ((y + dy) * width + (x + dx)) * 4;
+                if (this.isSkinColor(data[neighborIdx], data[neighborIdx + 1], data[neighborIdx + 2])) {
+                  neighboringSkin++;
+                }
+              }
+            }
+          }
+
+          if (neighboringSkin > 5) {
+            skinClusters++;
+          }
         }
       }
     }
 
-    const confidence = skinPixels > 0 ? Math.min(skinPixels / (totalPixels * 0.05), 1) : 0;
+    // More sophisticated confidence calculation
+    const skinDensity = skinPixels / totalPixels;
+    const hasSignificantSkinClusters = skinClusters > (skinPixels * 0.3);
+    const hasHandExposure = handAreaSkin > (width * height * 0.01); // 1% of image
+    const hasHeadExposure = headAreaSkin > (width * height * 0.005); // 0.5% of image
+
+    let confidence = 0;
+
+    // Only trigger if there are significant skin clusters in work areas
+    if (hasSignificantSkinClusters && (hasHandExposure || hasHeadExposure)) {
+      if (hasHandExposure && hasHeadExposure) {
+        confidence = Math.min(skinDensity * 20, 0.9); // Both hands and head exposed
+      } else if (hasHandExposure) {
+        confidence = Math.min(skinDensity * 15, 0.7); // Hands exposed (no gloves)
+      } else if (hasHeadExposure) {
+        confidence = Math.min(skinDensity * 12, 0.6); // Head exposed (no helmet)
+      }
+    }
+
     return {
       confidence,
       position: skinPixels > 0 ? {
@@ -270,12 +362,56 @@ class CVDetectionEngine {
     };
   }
 
-  // Helper function to detect skin color
+  // Enhanced helper function to detect skin color with better accuracy
   private isSkinColor(r: number, g: number, b: number): boolean {
-    return r > 95 && g > 40 && b > 20 &&
-           r > g && r > b &&
-           Math.abs(r - g) > 15 &&
-           r - b > 15;
+    // Multiple skin tone detection algorithms
+
+    // Algorithm 1: Traditional RGB skin detection
+    const traditional = r > 95 && g > 40 && b > 20 &&
+                       r > g && r > b &&
+                       Math.abs(r - g) > 15 &&
+                       r - b > 15;
+
+    // Algorithm 2: HSV-based skin detection (converted from RGB)
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+
+    let h = 0;
+    if (delta !== 0) {
+      if (max === r) h = ((g - b) / delta) % 6;
+      else if (max === g) h = (b - r) / delta + 2;
+      else h = (r - g) / delta + 4;
+    }
+    h = h * 60;
+    if (h < 0) h += 360;
+
+    const s = max === 0 ? 0 : delta / max;
+    const v = max / 255;
+
+    const hsvSkin = (h >= 0 && h <= 50) && s >= 0.23 && s <= 0.68 && v >= 0.35 && v <= 0.95;
+
+    // Algorithm 3: YCbCr color space (more robust for different lighting)
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const cb = -0.169 * r - 0.331 * g + 0.5 * b + 128;
+    const cr = 0.5 * r - 0.419 * g - 0.081 * b + 128;
+
+    const ycbcrSkin = y > 80 && cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173;
+
+    // Algorithm 4: Normalized RGB
+    const sum = r + g + b;
+    if (sum === 0) return false;
+
+    const nr = r / sum;
+    const ng = g / sum;
+    const nb = b / sum;
+
+    const normalizedSkin = nr > 0.36 && ng > 0.28 && ng < 0.363 && nb < 0.32;
+
+    // Combine algorithms - require at least 2 to agree
+    const votes = [traditional, hsvSkin, ycbcrSkin, normalizedSkin].filter(Boolean).length;
+
+    return votes >= 2;
   }
 
   // Helper function to detect floor color
@@ -507,7 +643,7 @@ export function ARScanner() {
     }
   };
 
-  // Auto detection using computer vision
+  // Auto detection using computer vision with debouncing
   const performAutoDetection = async () => {
     if (!videoRef.current || !cvEngineRef.current || !isAutoDetectionEnabled) return;
 
@@ -515,10 +651,15 @@ export function ARScanner() {
       const detections = await cvEngineRef.current.analyzeFrame(videoRef.current);
 
       detections.forEach(detection => {
-        // Check if this type of hazard is already detected
+        // Check if this type of hazard is already detected recently (debouncing)
         const existingHazard = detectedHazards.find(h => h.type === detection.type);
+        const recentDetection = detectedHazards.find(h =>
+          h.type === detection.type &&
+          Date.now() - h.detectedAt < 10000 // 10 seconds debounce
+        );
 
-        if (!existingHazard && detection.confidence >= detectionSensitivity) {
+        // Only add if confidence is high enough and not recently detected
+        if (!existingHazard && !recentDetection && detection.confidence >= detectionSensitivity) {
           const newHazard = {
             _id: `cv_${detection.type}_${Date.now()}`,
             name: detection.name,
@@ -538,7 +679,7 @@ export function ARScanner() {
           // Enhanced notification with confidence level
           toast.warning(`🤖 ${t('ar.hazard_detected')}: ${detection.name}`, {
             duration: 5000,
-            description: `Confidence: ${Math.round(detection.confidence * 100)}%`,
+            description: `Confidence: ${Math.round(detection.confidence * 100)}% | AI Detection`,
             action: {
               label: t('common.view'),
               onClick: () => console.log('View CV detection details', detection)
@@ -550,7 +691,11 @@ export function ARScanner() {
             navigator.vibrate([300, 100, 300, 100, 300]);
           }
 
-          console.log('🤖 CV Detection:', detection);
+          console.log('🤖 CV Detection:', {
+            type: detection.type,
+            confidence: Math.round(detection.confidence * 100) + '%',
+            position: detection.position
+          });
         }
       });
 
