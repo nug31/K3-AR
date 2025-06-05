@@ -864,61 +864,81 @@ export function ARScanner() {
     }
   };
 
-  // Auto detection using computer vision with debouncing
+  // Smart auto detection - avoid spam and focus on new hazard types
   const performAutoDetection = async () => {
     if (!videoRef.current || !cvEngineRef.current || !isAutoDetectionEnabled) return;
 
     try {
       const detections = await cvEngineRef.current.analyzeFrame(videoRef.current);
 
-      detections.forEach(detection => {
-        // Check if this type of hazard is already detected recently (debouncing)
-        const existingHazard = detectedHazards.find(h => h.type === detection.type);
-        const recentDetection = detectedHazards.find(h =>
-          h.type === detection.type &&
-          Date.now() - h.detectedAt < 10000 // 10 seconds debounce
+      // Get already detected hazard types
+      const detectedTypes = detectedHazards.map(h => h.type);
+      const recentlyDetectedTypes = detectedHazards
+        .filter(h => Date.now() - h.detectedAt < 30000) // 30 seconds cooldown per type
+        .map(h => h.type);
+
+      // Prioritize undetected hazard types
+      const undetectedHazards = detections.filter(d =>
+        !detectedTypes.includes(d.type) &&
+        d.confidence >= detectionSensitivity
+      );
+
+      // If no new types, allow re-detection of types not seen recently
+      const availableHazards = undetectedHazards.length > 0
+        ? undetectedHazards
+        : detections.filter(d =>
+            !recentlyDetectedTypes.includes(d.type) &&
+            d.confidence >= detectionSensitivity
+          );
+
+      // Process only the highest confidence detection to avoid spam
+      if (availableHazards.length > 0) {
+        const bestDetection = availableHazards.reduce((best, current) =>
+          current.confidence > best.confidence ? current : best
         );
 
-        // Only add if confidence is high enough and not recently detected
-        if (!existingHazard && !recentDetection && detection.confidence >= detectionSensitivity) {
-          const newHazard = {
-            _id: `cv_${detection.type}_${Date.now()}`,
-            name: detection.name,
-            description: `Terdeteksi otomatis: ${detection.name}`,
-            category: detection.category,
-            riskLevel: detection.riskLevel,
-            location: currentLocation,
-            detectedAt: Date.now(),
-            position: detection.position,
-            confidence: detection.confidence,
-            detectionMethod: 'computer_vision',
-            type: detection.type
-          };
+        const newHazard = {
+          _id: `cv_${bestDetection.type}_${Date.now()}`,
+          name: bestDetection.name,
+          description: `Terdeteksi otomatis: ${bestDetection.name}`,
+          category: bestDetection.category,
+          riskLevel: bestDetection.riskLevel,
+          location: currentLocation,
+          detectedAt: Date.now(),
+          position: bestDetection.position,
+          confidence: bestDetection.confidence,
+          detectionMethod: 'computer_vision',
+          type: bestDetection.type
+        };
 
-          setDetectedHazards(prev => [...prev, newHazard]);
+        setDetectedHazards(prev => [...prev, newHazard]);
 
-          // Enhanced notification with confidence level
-          toast.warning(`🤖 ${t('ar.hazard_detected')}: ${detection.name}`, {
-            duration: 5000,
-            description: `Confidence: ${Math.round(detection.confidence * 100)}% | AI Detection`,
-            action: {
-              label: t('common.view'),
-              onClick: () => console.log('View CV detection details', detection)
-            }
-          });
+        // Enhanced notification with priority indicator
+        const isNewType = !detectedTypes.includes(bestDetection.type);
+        const priorityIcon = isNewType ? '🆕' : '🔄';
 
-          // Vibrate if supported
-          if ('vibrate' in navigator) {
-            navigator.vibrate([300, 100, 300, 100, 300]);
+        toast.warning(`${priorityIcon} ${t('ar.hazard_detected')}: ${bestDetection.name}`, {
+          duration: 5000,
+          description: `Confidence: ${Math.round(bestDetection.confidence * 100)}% | ${isNewType ? 'New Type' : 'Re-detected'}`,
+          action: {
+            label: t('common.view'),
+            onClick: () => console.log('View CV detection details', bestDetection)
           }
+        });
 
-          console.log('🤖 CV Detection:', {
-            type: detection.type,
-            confidence: Math.round(detection.confidence * 100) + '%',
-            position: detection.position
-          });
+        // Vibrate if supported
+        if ('vibrate' in navigator) {
+          navigator.vibrate(isNewType ? [300, 100, 300, 100, 300] : [200, 100, 200]);
         }
-      });
+
+        console.log('🤖 Smart CV Detection:', {
+          type: bestDetection.type,
+          confidence: Math.round(bestDetection.confidence * 100) + '%',
+          isNewType,
+          totalDetectedTypes: detectedTypes.length,
+          availableHazards: availableHazards.length
+        });
+      }
 
       setCvDetections(detections);
     } catch (error) {
@@ -932,15 +952,23 @@ export function ARScanner() {
       simulateHazardDetection();
       performAutoDetection();
 
-      const traditionalInterval = setInterval(simulateHazardDetection, 3000);
-      const cvInterval = setInterval(performAutoDetection, 2000); // CV detection every 2 seconds
+      // Adaptive intervals based on detected hazards count
+      const detectedTypesCount = [...new Set(detectedHazards.map(h => h.type))].length;
+      const maxHazardTypes = 5; // exposed_wire, missing_ppe, cluttered_workspace, unsafe_placement, fire_hazard
+
+      // Slow down detection as more types are found
+      const traditionalInterval = setInterval(simulateHazardDetection, 5000); // Reduced frequency
+      const cvIntervalTime = detectedTypesCount >= maxHazardTypes ? 10000 : 3000; // Slow down when all types found
+      const cvInterval = setInterval(performAutoDetection, cvIntervalTime);
+
+      console.log(`🔍 Detection intervals: Traditional=${5000}ms, CV=${cvIntervalTime}ms (${detectedTypesCount}/${maxHazardTypes} types found)`);
 
       return () => {
         clearInterval(traditionalInterval);
         clearInterval(cvInterval);
       };
     }
-  }, [isScanning, hazards, currentLocation, isAutoDetectionEnabled, detectionSensitivity]);
+  }, [isScanning, hazards, currentLocation, isAutoDetectionEnabled, detectionSensitivity, detectedHazards.length]);
 
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
@@ -1185,12 +1213,43 @@ export function ARScanner() {
               </div>
             </div>
 
-            <div className="text-xs text-blue-600">
-              <div className="grid grid-cols-2 gap-2">
-                <div>✅ Detects: Missing PPE</div>
-                <div>✅ Detects: Exposed Wires</div>
-                <div>✅ Detects: Cluttered Areas</div>
-                <div>✅ Detects: Unsafe Placement</div>
+            {/* Smart Detection Status */}
+            <div className="text-xs">
+              <div className="mb-2 font-medium text-blue-700">🎯 Detection Progress:</div>
+              <div className="grid grid-cols-1 gap-1">
+                {[
+                  { type: 'exposed_wire', name: 'Exposed Wires', icon: '🔌' },
+                  { type: 'missing_ppe', name: 'Missing PPE', icon: '🦺' },
+                  { type: 'cluttered_workspace', name: 'Cluttered Areas', icon: '📦' },
+                  { type: 'unsafe_placement', name: 'Unsafe Placement', icon: '⚠️' },
+                  { type: 'fire_hazard', name: 'Fire Hazards', icon: '🔥' }
+                ].map(hazardType => {
+                  const isDetected = detectedHazards.some(h => h.type === hazardType.type);
+                  const recentlyDetected = detectedHazards.some(h =>
+                    h.type === hazardType.type &&
+                    Date.now() - h.detectedAt < 30000
+                  );
+                  return (
+                    <div key={hazardType.type} className={`flex items-center justify-between p-1 rounded ${
+                      isDetected ? 'bg-green-100 text-green-700' :
+                      recentlyDetected ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-500'
+                    }`}>
+                      <span className="flex items-center gap-1">
+                        <span>{hazardType.icon}</span>
+                        <span>{hazardType.name}</span>
+                      </span>
+                      <span className="text-xs font-medium">
+                        {isDetected ? '✅ Found' :
+                         recentlyDetected ? '🔄 Recent' :
+                         '🔍 Searching'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-center text-blue-600 font-medium">
+                {[...new Set(detectedHazards.map(h => h.type))].length}/5 Types Found
               </div>
             </div>
           </div>
