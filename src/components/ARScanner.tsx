@@ -54,9 +54,9 @@ class CVDetectionEngine {
       });
     }
 
-    // 2. Detect missing PPE (looking for skin color in work areas) - STRICTER
+    // 2. Detect missing PPE (looking for skin color in work areas) - VERY STRICT
     const ppeDetection = this.detectMissingPPE(data, width, height);
-    if (ppeDetection.confidence > 0.5) { // Lowered from 0.7 but with stricter algorithm
+    if (ppeDetection.confidence > 0.8) { // Very high threshold with human shape validation
       detections.push({
         type: 'missing_ppe',
         name: 'Pekerja Tanpa APD',
@@ -191,7 +191,7 @@ class CVDetectionEngine {
     };
   }
 
-  // Detect missing PPE by looking for exposed skin in work areas
+  // Detect missing PPE with human shape detection
   private detectMissingPPE(data: Uint8ClampedArray, width: number, height: number) {
     let skinPixels = 0;
     let skinClusters = 0;
@@ -199,10 +199,14 @@ class CVDetectionEngine {
     let avgX = 0, avgY = 0;
     let handAreaSkin = 0;
     let headAreaSkin = 0;
+    let humanShapeScore = 0;
 
     // Focus on specific body areas where PPE should be worn
     const handAreaY = Math.floor(height * 0.6); // Lower 40% for hands
     const headAreaY = Math.floor(height * 0.3); // Upper 30% for head
+
+    // Create skin map for shape analysis
+    const skinMap: boolean[][] = Array(height).fill(null).map(() => Array(width).fill(false));
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -213,6 +217,7 @@ class CVDetectionEngine {
 
         // Enhanced skin color detection
         if (this.isSkinColor(r, g, b)) {
+          skinMap[y][x] = true;
           skinPixels++;
           avgX += x;
           avgY += y;
@@ -245,22 +250,40 @@ class CVDetectionEngine {
       }
     }
 
-    // More sophisticated confidence calculation
+    // Human shape detection - look for vertical arrangement of skin regions
+    if (skinPixels > 0) {
+      humanShapeScore = this.analyzeHumanShape(skinMap, width, height);
+    }
+
+    // Motion detection - check if skin regions are in human-like proportions
+    const aspectRatioScore = this.checkHumanProportions(skinMap, width, height);
+
+    // Very strict confidence calculation with human shape validation
     const skinDensity = skinPixels / totalPixels;
-    const hasSignificantSkinClusters = skinClusters > (skinPixels * 0.3);
-    const hasHandExposure = handAreaSkin > (width * height * 0.01); // 1% of image
-    const hasHeadExposure = headAreaSkin > (width * height * 0.005); // 0.5% of image
+    const hasSignificantSkinClusters = skinClusters > (skinPixels * 0.4); // Increased from 0.3
+    const hasHandExposure = handAreaSkin > (width * height * 0.025); // Increased threshold significantly
+    const hasHeadExposure = headAreaSkin > (width * height * 0.015); // Increased threshold significantly
+    const hasHumanShape = humanShapeScore > 0.5; // Increased - require strong human shape
+    const hasHumanProportions = aspectRatioScore > 0.6; // Increased - require strong proportions
+    const hasMinimumSkinArea = skinPixels > (width * height * 0.02); // Require at least 2% skin
 
     let confidence = 0;
 
-    // Only trigger if there are significant skin clusters in work areas
-    if (hasSignificantSkinClusters && (hasHandExposure || hasHeadExposure)) {
-      if (hasHandExposure && hasHeadExposure) {
-        confidence = Math.min(skinDensity * 20, 0.9); // Both hands and head exposed
-      } else if (hasHandExposure) {
-        confidence = Math.min(skinDensity * 15, 0.7); // Hands exposed (no gloves)
-      } else if (hasHeadExposure) {
-        confidence = Math.min(skinDensity * 12, 0.6); // Head exposed (no helmet)
+    // Extremely strict requirements - must have ALL conditions
+    if (hasSignificantSkinClusters && hasHumanShape && hasHumanProportions &&
+        hasMinimumSkinArea && (hasHandExposure || hasHeadExposure) && skinDensity > 0.01) {
+
+      // Additional validation: check for clothing/body context
+      const hasClothingContext = this.detectClothingContext(data, width, height, skinMap);
+
+      if (hasClothingContext) {
+        if (hasHandExposure && hasHeadExposure) {
+          confidence = Math.min(skinDensity * 15 * humanShapeScore, 0.8); // Reduced max confidence
+        } else if (hasHandExposure) {
+          confidence = Math.min(skinDensity * 12 * humanShapeScore, 0.6); // Hands exposed
+        } else if (hasHeadExposure) {
+          confidence = Math.min(skinDensity * 10 * humanShapeScore, 0.5); // Head exposed
+        }
       }
     }
 
@@ -271,6 +294,136 @@ class CVDetectionEngine {
         y: (avgY / skinPixels / height) * 100
       } : { x: 50, y: 30 }
     };
+  }
+
+  // Analyze if skin regions form human-like shape
+  private analyzeHumanShape(skinMap: boolean[][], width: number, height: number): number {
+    let shapeScore = 0;
+    const centerX = Math.floor(width / 2);
+
+    // Look for head region (top 30%)
+    let headRegions = 0;
+    for (let y = 0; y < height * 0.3; y++) {
+      for (let x = centerX - width * 0.1; x < centerX + width * 0.1; x++) {
+        if (x >= 0 && x < width && skinMap[y] && skinMap[y][Math.floor(x)]) {
+          headRegions++;
+        }
+      }
+    }
+
+    // Look for torso region (middle 40%)
+    let torsoRegions = 0;
+    for (let y = height * 0.3; y < height * 0.7; y++) {
+      for (let x = centerX - width * 0.15; x < centerX + width * 0.15; x++) {
+        if (x >= 0 && x < width && skinMap[y] && skinMap[y][Math.floor(x)]) {
+          torsoRegions++;
+        }
+      }
+    }
+
+    // Look for hand/arm regions (sides)
+    let armRegions = 0;
+    for (let y = height * 0.4; y < height * 0.8; y++) {
+      // Left side
+      for (let x = 0; x < width * 0.3; x++) {
+        if (skinMap[y] && skinMap[y][x]) armRegions++;
+      }
+      // Right side
+      for (let x = width * 0.7; x < width; x++) {
+        if (skinMap[y] && skinMap[y][x]) armRegions++;
+      }
+    }
+
+    // Calculate shape score based on human-like distribution
+    const totalSkinPixels = headRegions + torsoRegions + armRegions;
+    if (totalSkinPixels > 0) {
+      const headRatio = headRegions / totalSkinPixels;
+      const torsoRatio = torsoRegions / totalSkinPixels;
+      const armRatio = armRegions / totalSkinPixels;
+
+      // Human-like ratios: head ~20%, torso ~50%, arms ~30%
+      if (headRatio > 0.1 && headRatio < 0.4 && torsoRatio > 0.3 && armRatio > 0.1) {
+        shapeScore = Math.min((headRatio + torsoRatio + armRatio) / 3, 1);
+      }
+    }
+
+    return shapeScore;
+  }
+
+  // Check if skin regions have human-like proportions
+  private checkHumanProportions(skinMap: boolean[][], width: number, height: number): number {
+    let minX = width, maxX = 0, minY = height, maxY = 0;
+    let skinCount = 0;
+
+    // Find bounding box of skin regions
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (skinMap[y] && skinMap[y][x]) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          skinCount++;
+        }
+      }
+    }
+
+    if (skinCount === 0) return 0;
+
+    const skinWidth = maxX - minX;
+    const skinHeight = maxY - minY;
+    const aspectRatio = skinHeight / skinWidth;
+
+    // Human proportions: height should be 1.5-3x width
+    if (aspectRatio >= 1.2 && aspectRatio <= 4 && skinWidth > width * 0.1 && skinHeight > height * 0.2) {
+      return Math.min(aspectRatio / 2, 1);
+    }
+
+    return 0;
+  }
+
+  // Detect clothing context around skin regions
+  private detectClothingContext(data: Uint8ClampedArray, width: number, height: number, skinMap: boolean[][]): boolean {
+    let clothingPixels = 0;
+    let totalChecked = 0;
+
+    // Look for clothing colors around skin regions
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (skinMap[y] && skinMap[y][x]) {
+          // Check surrounding pixels for clothing-like colors
+          for (let dy = -5; dy <= 5; dy++) {
+            for (let dx = -5; dx <= 5; dx++) {
+              const checkY = y + dy;
+              const checkX = x + dx;
+              if (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
+                const idx = (checkY * width + checkX) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+
+                totalChecked++;
+
+                // Look for clothing-like colors (not skin, not background)
+                if (!this.isSkinColor(r, g, b) && !this.isBackgroundColor(r, g, b)) {
+                  clothingPixels++;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Require significant clothing context around skin
+    return totalChecked > 0 && (clothingPixels / totalChecked) > 0.3;
+  }
+
+  // Helper to detect background colors
+  private isBackgroundColor(r: number, g: number, b: number): boolean {
+    // Very bright (overexposed) or very dark areas
+    const brightness = (r + g + b) / 3;
+    return brightness > 240 || brightness < 30;
   }
 
   // Detect cluttered workspace using texture analysis
@@ -408,10 +561,14 @@ class CVDetectionEngine {
 
     const normalizedSkin = nr > 0.36 && ng > 0.28 && ng < 0.363 && nb < 0.32;
 
-    // Combine algorithms - require at least 2 to agree
+    // Much stricter - require at least 3 algorithms to agree
     const votes = [traditional, hsvSkin, ycbcrSkin, normalizedSkin].filter(Boolean).length;
 
-    return votes >= 2;
+    // Additional brightness check to avoid false positives from bright surfaces
+    const brightness = (r + g + b) / 3;
+    const isReasonableBrightness = brightness > 60 && brightness < 200;
+
+    return votes >= 3 && isReasonableBrightness;
   }
 
   // Helper function to detect floor color
