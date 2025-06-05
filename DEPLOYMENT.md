@@ -36,14 +36,13 @@ Set up environment variables in Netlify dashboard:
 
 **Site Settings → Environment Variables → Add Variable:**
 ```
-VITE_CONVEX_URL = your_convex_deployment_url
+VITE_CONVEX_URL = https://terrific-giraffe-753.convex.cloud
 ```
 
-**To get your Convex URL:**
-1. Go to https://dashboard.convex.dev/
-2. Select your deployment: `terrific-giraffe-753`
-3. Copy the deployment URL
-4. Add to Netlify environment variables
+**Your Convex Deployment URL:**
+- **URL**: `https://terrific-giraffe-753.convex.cloud`
+- **Deployment**: `terrific-giraffe-753`
+- **Dashboard**: https://dashboard.convex.dev/d/terrific-giraffe-753
 
 ### 4. **Deploy**
 1. Click "Deploy site"
